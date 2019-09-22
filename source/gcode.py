@@ -107,8 +107,12 @@ class GCode:
 
             # parse first parameter, i.e. Gcode type separate
             gtype = segmented.pop(0)
-            gcommand.gtype = gtype
-            gcommand.gnumber = int(gtype[1:])
+            try:
+                gcommand.gtype = gtype
+                gcommand.gnumber = int(gtype[1:])
+            except ValueError:
+                self._invalid_line(gcommand, line, linenumber,
+                                   add_msg="Invalid command: '{}'".format(gtype))
 
             # split each parameter into a letter and a correspodning float
             for param in segmented:
