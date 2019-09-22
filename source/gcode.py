@@ -1,6 +1,7 @@
 # tests: multiple comments, multiple spaces, leading spaces, G1/G01
 #           leading character, additional characters, multiple commands in one line, upper/lowerkey
 # Todo: add function for checking equality where "G02" == "G2"
+# Todo GCommand only access through functions for data sanity checking
 # Todo: parser: split into multiple functions
 
 
