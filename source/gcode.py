@@ -73,20 +73,29 @@ class GCode:
         gcommand.comment = comment
 
         if instruction:
-            # strip all spaces from line. We're not going to parse the line based on those as it is unreliable
-            instruction = instruction.replace(" ", "")
+            # replace multiple spaces with a single space so that only single spaces occur
+            while " " * 2 in instruction:
+                instruction = instruction.replace(" " * 2, " ")
 
             # first character needs to be one of instruction G, M or T
-            if instruction[0] == "G":
+            if instruction[0].upper() == "G":
                 gcommand.g = True
-            elif instruction[0] == "M":
+            elif instruction[0].upper() == "M":
                 gcommand.m = True
-            elif instruction[0] == "T":
+            elif instruction[0].upper() == "T":
                 gcommand.t = True
             else:
                 self._invalid_line(gcommand, line, linenumber,
                                    add_msg="Missing G, M or T parameter or parameter is not in first position")
                 return
+
+            # check that there is a space infront of every parameter (alpha character)
+            for i in range(1, len(instruction)):
+                if instruction[i].isalpha() and not instruction[i-1] == " ":
+                    self._invalid_line(gcommand, line, linenumber,
+                                       add_msg="Invalid formatting - missing space character before parameter '{}' at "
+                                               "postion {}".format(instruction[i], i+1))
+                    return
 
             # segment instruction; split string at alpha characters
             # each segement is appended to the "segmented" list
@@ -113,8 +122,9 @@ class GCode:
             except ValueError:
                 self._invalid_line(gcommand, line, linenumber,
                                    add_msg="Invalid command: '{}'".format(gtype))
+                return
 
-            # split each parameter into a letter and a correspodning float
+            # split each parameter into a letter and a corresponding float
             for param in segmented:
                 try:
                     key = str(param[0])
@@ -123,6 +133,13 @@ class GCode:
                     self._invalid_line(gcommand, line, linenumber,
                                        add_msg="Failed to seperate variable name and value")
                     return
+
+                # check for multiple commands on one line; T is allowed to occur with M or G commands
+                if key.upper() == "G" or key.upper() == "M":
+                    self._invalid_line(gcommand, line, linenumber,
+                                       add_msg="Command '{}' is not allowed as a parameter".format(param))
+                    return
+
                 gcommand.set_param(key, value)
 
         gcommand.validate()
