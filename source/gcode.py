@@ -117,8 +117,7 @@ class GCode:
             # parse first parameter, i.e. Gcode type separate
             gtype = segmented.pop(0)
             try:
-                gcommand.gtype = gtype
-                gcommand.gnumber = int(gtype[1:])
+                gcommand.set_gtype(gtype)
             except ValueError:
                 self._invalid_line(gcommand, line, linenumber,
                                    add_msg="Invalid command: '{}'".format(gtype))
@@ -195,6 +194,16 @@ class GCommand:
         self.linenumber = int()
 
         self.original = str()  # only used when debug option is set for class <GCode>
+
+    def set_gtype(self, gtype):
+        """Sets the gtype, also automatically sets the gnumber accordingly.
+
+        :param gtype: GCode command; example 'G15'
+        :type gtype: str
+        :return: None
+        """
+        self.gtype = gtype.strip(" ")
+        self.gnumber = int(gtype[1:])
 
     def set_param(self, param, value):
         """Add a parameter/value pair.
