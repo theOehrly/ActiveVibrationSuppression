@@ -192,6 +192,7 @@ class GCommand:
         """Return the value associated with the given parameter.
 
         :param param: GCode parameter; e.g. 'X' or 'E'
+        :type param: str
         :return: float
         """
         return self._parameters[param.upper()]
@@ -200,6 +201,7 @@ class GCommand:
         """Has this command the specified parameter?
 
         :param param: GCode parameter; e.g. 'X' or 'E'
+        :type param: str
         :return: bool
         """
         if param.upper() in self._parameters.keys():
@@ -225,5 +227,5 @@ class GCommand:
 
         This means the parser understood everything and it is uasable.
 
-        :return: nothing"""
+        :return: None"""
         self._valid = True
