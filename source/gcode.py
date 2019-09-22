@@ -119,7 +119,7 @@ class GCode:
                     self._invalid_line(gcommand, line, linenumber,
                                        add_msg="Failed to seperate variable name and value")
                     return
-                gcommand.parameters[key] = value
+                gcommand.set_param(key, value)
 
         gcommand.validate()
         self.commands.append(gcommand)
@@ -150,7 +150,7 @@ class GCode:
         elif self.ignore_invalid and self.keep_invalid:
             # line is kept but not validated; command, parameters, comment can not be determined
             gcommand.original = line
-            gcommand.parameters.clear()
+            gcommand.clear_params()
             self.commands.append(gcommand)
         else:
             raise ValueError("\nLine {} in GCode is not valid: \n '{}' \n {}".format(linenumber, line, add_msg))
@@ -168,12 +168,25 @@ class GCommand:
         self.m = False
         self.t = False
 
-        self.parameters = dict()
+        self._parameters = dict()
         self.comment = str()
 
         self.linenumber = int()
 
         self.original = str()  # only used when debug option is set for class <GCode>
+
+    def set_param(self, param, value):
+        """Add a parameter/value pair.
+
+        This will create a new parameter or overwrite existing ones.
+
+        :param param: GCode parameter; e.g. 'X' or 'E'
+        :type param: str
+        :param value: Value for Parameter
+        :type value: int/float
+        :return: None
+        """
+        self._parameters[param.upper()] = float(value)
 
     def get_param(self, param):
         """Return the value associated with the given parameter.
@@ -181,7 +194,7 @@ class GCommand:
         :param param: GCode parameter; e.g. 'X' or 'E'
         :return: float
         """
-        return self.parameters[param]
+        return self._parameters[param.upper()]
 
     def has_param(self, param):
         """Has this command the specified parameter?
@@ -189,9 +202,16 @@ class GCommand:
         :param param: GCode parameter; e.g. 'X' or 'E'
         :return: bool
         """
-        if param in self.parameters.keys():
+        if param.upper() in self._parameters.keys():
             return True
         return False
+
+    def clear_params(self):
+        """Delete all paramters
+
+        :return: None"""
+
+        self._parameters.clear()
 
     def is_valid(self):
         """Is this a valid line/command?
