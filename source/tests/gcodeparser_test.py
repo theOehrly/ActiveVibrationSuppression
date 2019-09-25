@@ -117,6 +117,25 @@ class GcodeParserTest(unittest.TestCase):
 
         self.assertEqual(len(gcode.commands), 0)   # no commands should be loaded
 
+    def test_tabs_in_line(self):
+        # tabs in line should be ignored/treated like a single space
+        gcode = GCode()
+        gcode.load_file("gc_tabs_in_line.gcode")
+
+        self.assertEqual(len(gcode.commands), 2)  # two commands should be loaded
+
+        for i in range(2):
+            # check correct command recognition
+            self.assertEqual(gcode.commands[i].gtype, "G01")
+
+            # check if parameters were found
+            self.assertEqual(gcode.commands[i].has_param("X"), True)
+            self.assertEqual(gcode.commands[i].has_param("Y"), True)
+
+            # check if values were found
+            self.assertEqual(gcode.commands[i].get_param("X"), 50)
+            self.assertEqual(gcode.commands[i].get_param("Y"), 50)
+
 
 if __name__ == '__main__':
     unittest.main()

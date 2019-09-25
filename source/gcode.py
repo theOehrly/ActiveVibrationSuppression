@@ -57,7 +57,7 @@ class GCode:
             gcommand.original = line
 
         # remove line breaks, they are not needed and may cause problems
-        line = line.replace("\r", "").replace("\n", "")
+        line = line.replace("\r", "").replace("\n", "").replace("\t", " ")
 
         # find first character in line. prevents fail in case of leading spaces
         i = 0  # should not be necessary; make sure i is defined after the for loop
