@@ -12,7 +12,7 @@ class GcodeParserTest(unittest.TestCase):
         self.assertEqual(len(gcode.commands), 1)
 
         # check command recognized correctly
-        self.assertEqual(gcode.commands[0].g, True)
+        self.assertTrue(gcode.commands[0].g())
         self.assertTrue(gcode.commands[0].is_gtype("G5"))
         self.assertTrue(gcode.commands[0].is_gnumber(5))
 
@@ -67,7 +67,7 @@ class GcodeParserTest(unittest.TestCase):
 
         g_lines = 0
         for i in range(6):
-            if gcode.commands[i].g:
+            if gcode.commands[i].g():
                 g_lines += 1
 
                 # check correct command recognition

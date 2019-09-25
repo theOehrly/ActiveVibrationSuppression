@@ -1,7 +1,3 @@
-# Todo GCommand only access through functions for data sanity checking
-# Todo: parser: split into multiple functions
-# #Todo improve gcommand.g/m/t
-
 
 class GCode:
     def __init__(self, keep_invalid=False, ignore_invalid=False, keep_raw=False):
@@ -51,9 +47,12 @@ class GCode:
         gcommand = GCommand()
         gcommand.linenumber = linenumber
 
-        # save original line for writing later or debugging
+        # save original line for writing data again later or for debugging
         if self.keep_invalid or self.keep_raw:
             gcommand.original = line
+
+        # ###################
+        # #### clean up data
 
         # remove line breaks, they are not needed and may cause problems
         line = line.replace("\r", "").replace("\n", "").replace("\t", " ")
@@ -67,6 +66,29 @@ class GCode:
                 break
         line = line[i:]
 
+        # ####################
+        # #### interpret data
+
+        instruction, comment = self._split_instruction_comment(line)
+
+        gcommand.comment = comment
+
+        if instruction:
+            success = self._parse_instruction(gcommand, instruction, line, linenumber)
+            if not success:
+                return
+
+        gcommand.validate()
+        self.commands.append(gcommand)
+
+    @staticmethod
+    def _split_instruction_comment(line):
+        """Split the provided line of gcode into a instruction and a comment part
+
+        :param line: line of gcode
+        :type line: str
+        :return: str, str: instruction, comment
+        """
         i_split = line.find(';')  # get index for start of comment (if any)
 
         if i_split == -1:
@@ -78,79 +100,111 @@ class GCode:
             instruction = line[0:i_split]  # start to comment start index
             comment = str(line[i_split:])  # comment start index to end
 
-        gcommand.comment = comment
+        return instruction, comment
 
-        if instruction:
-            # replace multiple spaces with a single space so that only single spaces occur
-            while " " * 2 in instruction:
-                instruction = instruction.replace(" " * 2, " ")
+    def _segment_instructions(self, gcommand, instruction, line, linenumber):
+        """Segment a gcode instruction line into its parameters.
 
-            # first character needs to be one of instruction G, M or T
-            if instruction[0].upper() == "G":
-                gcommand.g = True
-            elif instruction[0].upper() == "M":
-                gcommand.m = True
-            elif instruction[0].upper() == "T":
-                gcommand.t = True
-            else:
+        Example: "G02 X6 Y70" --> ("G02 ", "X6 ", "Y70 ")
+
+        :param gcommand: class instance of current gcommand
+        :type gcommand: GCommand
+        :param instruction: the instruction part of the current line
+        :type instruction: str
+        :param line: the full gcode line
+        :type line: str
+        :param linenumber: index of the line in the file
+        :type linenumber: int
+        :return: list of strings or None in case of error
+        """
+        # check that there is a space infront of every parameter (parameter -> alpha character)
+        # also don't check the very first character as there are no leading spaces before (obviously)
+        for i in range(1, len(instruction)):
+            if instruction[i].isalpha() and not instruction[i - 1] == " ":
                 self._invalid_line(gcommand, line, linenumber,
-                                   add_msg="Missing G, M or T parameter or parameter is not in first position")
+                                   add_msg="Invalid formatting - missing space character before parameter '{}' at "
+                                           "postion {}".format(instruction[i], i + 1))
                 return
 
-            # check that there is a space infront of every parameter (alpha character)
-            for i in range(1, len(instruction)):
-                if instruction[i].isalpha() and not instruction[i-1] == " ":
-                    self._invalid_line(gcommand, line, linenumber,
-                                       add_msg="Invalid formatting - missing space character before parameter '{}' at "
-                                               "postion {}".format(instruction[i], i+1))
-                    return
+        # segment instruction, therefore split string at alpha characters
+        # each segement is appended to the "segmented" list
+        segmented = list()
+        i = 0
+        while instruction:
+            i += 1
+            if i >= len(instruction):
+                # We reached the end. The remaining part of instruction must therefore be one segment.
+                segmented.append(instruction)
+                break
 
-            # segment instruction; split string at alpha characters
-            # each segement is appended to the "segmented" list
-            segmented = list()
-            i = 0
-            while instruction:
-                i += 1
-                if i >= len(instruction):
-                    # no more alpha characters after, remaining part of instruction is one segment
-                    segmented.append(instruction)
-                    break
+            # recognize paramters by checking if character is a alpha character
+            # if it is, the part infront(!) of it is considered to be one parameter
+            # basically we're looking for the end of a parameter, copy the parameter to the list and
+            # slice the parameter out of the list afterwards
+            if instruction[i].isalpha():
+                segmented.append(instruction[:i])
+                instruction = instruction[i:]
+                i = 0
 
-                # check to ensure variable names are alpha characters
-                if instruction[i].isalpha():
-                    segmented.append(instruction[:i])
-                    instruction = instruction[i:]
-                    i = 0
+        return segmented
 
-            # parse first parameter, i.e. Gcode type separate
-            gtype = segmented.pop(0)
+    def _parse_instruction(self, gcommand, instruction, line, linenumber):
+        """Parse the given instruction and add all parameters to the gcommand.
+
+        :param gcommand: class instance of current gcommand
+        :type gcommand: GCommand
+        :param instruction: the instruction part of the current line
+        :type instruction: str
+        :param line: the full gcode line
+        :type line: str
+        :param linenumber: index of the line in the file
+        :type linenumber: int
+        :return: True if successfull, else False"""
+
+        # replace multiple spaces with a single space so that only single spaces occur
+        while " " * 2 in instruction:
+            instruction = instruction.replace(" " * 2, " ")
+
+        # split the instruction into mutliple segments, each containing one parameter
+        segmented = self._segment_instructions(gcommand, instruction, line, linenumber)
+        if not segmented:
+            return False  # can happen in case of invalid lines
+
+        # parse first parameter, i.e. Gcode type separate
+        gtype = segmented.pop(0)
+        if not gtype[0] in "GMTgmt":
+            # first charcter needs to be one of upper or lower case G, M, T
+            self._invalid_line(gcommand, line, linenumber,
+                               add_msg="Missing G, M or T parameter or parameter is not in first position")
+            return False
+
+        # Set the gtype. This automatically also sets gcommand.gnumber and gcommand.g/m/t
+        try:
+            gcommand.set_gtype(gtype)
+        except ValueError:
+            self._invalid_line(gcommand, line, linenumber,
+                               add_msg="Invalid command: '{}'".format(gtype))
+            return False
+
+        # split each parameter into a letter and a corresponding float
+        for param in segmented:
             try:
-                gcommand.set_gtype(gtype)
+                key = str(param[0])
+                value = float(param[1:])
             except ValueError:
                 self._invalid_line(gcommand, line, linenumber,
-                                   add_msg="Invalid command: '{}'".format(gtype))
-                return
+                                   add_msg="Failed to seperate variable name and value")
+                return False
 
-            # split each parameter into a letter and a corresponding float
-            for param in segmented:
-                try:
-                    key = str(param[0])
-                    value = float(param[1:])
-                except ValueError:
-                    self._invalid_line(gcommand, line, linenumber,
-                                       add_msg="Failed to seperate variable name and value")
-                    return
+            # check for multiple commands on one line; T is allowed to occur with M or G commands
+            if key.upper() == "G" or key.upper() == "M":
+                self._invalid_line(gcommand, line, linenumber,
+                                   add_msg="Command '{}' is not allowed as a parameter".format(param))
+                return False
 
-                # check for multiple commands on one line; T is allowed to occur with M or G commands
-                if key.upper() == "G" or key.upper() == "M":
-                    self._invalid_line(gcommand, line, linenumber,
-                                       add_msg="Command '{}' is not allowed as a parameter".format(param))
-                    return
+            gcommand.set_param(key, value)
 
-                gcommand.set_param(key, value)
-
-        gcommand.validate()
-        self.commands.append(gcommand)
+        return True
 
     def _invalid_line(self, gcommand, line, linenumber, add_msg=str()):
         """Handles invalid lines depending on set options.
@@ -192,9 +246,9 @@ class GCommand:
 
         self._gtype = str()
         self._gnumber = int()
-        self.g = False
-        self.m = False
-        self.t = False
+        self._g = False
+        self._m = False
+        self._t = False
 
         self._parameters = dict()
         self.comment = str()
@@ -210,8 +264,17 @@ class GCommand:
         :type gtype: str
         :return: None
         """
-        self._gtype = gtype.strip(" ")
+        self._gtype = gtype.strip(" ").upper()
         self._set_gnumber(int(gtype[1:]))
+
+        if self._gtype[0] == 'G':
+            self._g = True
+        elif self._gtype[0] == 'M':
+            self._m = True
+        elif self._gtype[0] == "T":
+            self._t = True
+        else:
+            raise ValueError
 
     def get_gtype(self):
         """Returns this commands gtype.
@@ -300,6 +363,27 @@ class GCommand:
         :return: None"""
 
         self._parameters.clear()
+
+    def g(self):
+        """Check if this command is a G command.
+
+        Example command: 'G01'
+        """
+        return True if self._g else False
+
+    def m(self):
+        """Check if this command is a M command.
+
+        Example command: 'M01'
+        """
+        return True if self._m else False
+
+    def t(self):
+        """Check if this command is a T command.
+
+        Example command: 'T01'
+        """
+        return True if self._t else False
 
     def is_valid(self):
         """Is this a valid line/command?
