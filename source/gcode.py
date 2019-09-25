@@ -1,5 +1,4 @@
-# tests: multiple comments, multiple spaces, leading spaces, G1/G01
-#           leading character, additional characters, multiple commands in one line, upper/lowerkey
+# tests: G1/G01, tabs
 # Todo: add function for checking equality where "G02" == "G2"
 # Todo GCommand only access through functions for data sanity checking
 # Todo: parser: split into multiple functions
@@ -59,6 +58,15 @@ class GCode:
 
         # remove line breaks, they are not needed and may cause problems
         line = line.replace("\r", "").replace("\n", "")
+
+        # find first character in line. prevents fail in case of leading spaces
+        i = 0  # should not be necessary; make sure i is defined after the for loop
+        for i in range(len(line)):
+            if not line[i].isspace():
+                # yes this also accepts invalid first characters
+                # but I want to keep data clean up and interpretation seperate
+                break
+        line = line[i:]
 
         i_split = line.find(';')  # get index for start of comment (if any)
 
