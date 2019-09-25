@@ -1,7 +1,6 @@
-# tests: G1/G01, tabs
-# Todo: add function for checking equality where "G02" == "G2"
 # Todo GCommand only access through functions for data sanity checking
 # Todo: parser: split into multiple functions
+# #Todo improve gcommand.g/m/t
 
 
 class GCode:
@@ -191,8 +190,8 @@ class GCommand:
         """
         self._valid = False  # set to False by default; forced to actively mark commands as valid!
 
-        self.gtype = str()
-        self.gnumber = int()
+        self._gtype = str()
+        self._gnumber = int()
         self.g = False
         self.m = False
         self.t = False
@@ -211,8 +210,56 @@ class GCommand:
         :type gtype: str
         :return: None
         """
-        self.gtype = gtype.strip(" ")
-        self.gnumber = int(gtype[1:])
+        self._gtype = gtype.strip(" ")
+        self._set_gnumber(int(gtype[1:]))
+
+    def get_gtype(self):
+        """Returns this commands gtype.
+
+        gtype is for example 'G15"
+
+        :return: str
+        """
+        return self._gtype
+
+    def is_gtype(self, gtype):         # TODO write test
+
+        """Check if this is the same command as the provided gtype.
+
+        This will treat G1 equal to G01 equal to G001 and so on.
+
+        :param gtype: GCode command; example 'G15'
+        :type gtype: str
+        :return: bool
+        """
+        return True if (gtype[0] == self._gtype[0] and self.is_gnumber(int(gtype[1:]))) else False
+
+    def _set_gnumber(self, gnumber):
+        """Sets this command's gcode number.
+
+        Don't use this directly. Always use set_gtype to prevent conflicting data.
+
+        :param gnumber: Number of the gcode command. E.g. 15 for G15
+        :type gnumber: int
+        :return: None
+        """
+        self._gnumber = gnumber
+
+    def get_gnumber(self):
+        """Get this command's gcode number.
+
+        :return: int: Number of this gcode command. E.g. 15 for G15
+        """
+        return self._gnumber
+
+    def is_gnumber(self, gnumber):
+        """Check if this command's gcode number is the same as the provided number.
+
+        :param gnumber: Number of the gcode command. E.g. 15 for G15
+        :type gnumber: int
+        :return: bool
+        """
+        return True if gnumber == self._gnumber else False
 
     def set_param(self, param, value):
         """Add a parameter/value pair.

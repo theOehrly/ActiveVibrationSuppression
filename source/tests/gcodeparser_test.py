@@ -13,8 +13,8 @@ class GcodeParserTest(unittest.TestCase):
 
         # check command recognized correctly
         self.assertEqual(gcode.commands[0].g, True)
-        self.assertEqual(gcode.commands[0].gtype, "G5")
-        self.assertEqual(gcode.commands[0].gnumber, 5)
+        self.assertTrue(gcode.commands[0].is_gtype("G5"))
+        self.assertTrue(gcode.commands[0].is_gnumber(5))
 
         # check parameters recognized correctly and upper/lowercase compatibility
         self.assertEqual(gcode.commands[0].has_param("X"), True)
@@ -36,10 +36,10 @@ class GcodeParserTest(unittest.TestCase):
         self.assertEqual(len(gcode.commands), 4)
 
         # check correct command recognition
-        self.assertEqual(gcode.commands[0].gtype, "G1")
-        self.assertEqual(gcode.commands[1].gtype, "G0")
-        self.assertEqual(gcode.commands[2].gtype, "G10")
-        self.assertEqual(gcode.commands[3].gtype, "G16")
+        self.assertTrue(gcode.commands[0].is_gtype("G1"))
+        self.assertTrue(gcode.commands[1].is_gtype("G0"))
+        self.assertTrue(gcode.commands[2].is_gtype("G10"))
+        self.assertTrue(gcode.commands[3].is_gtype("G16"))
 
         for i in range(4):
             # check if parameters were found
@@ -71,7 +71,7 @@ class GcodeParserTest(unittest.TestCase):
                 g_lines += 1
 
                 # check correct command recognition
-                self.assertEqual(gcode.commands[i].gtype, "G1")
+                self.assertTrue(gcode.commands[i].is_gtype("G1"))
 
                 # check if parameters were found
                 self.assertEqual(gcode.commands[i].has_param("X"), True)
@@ -126,7 +126,7 @@ class GcodeParserTest(unittest.TestCase):
 
         for i in range(2):
             # check correct command recognition
-            self.assertEqual(gcode.commands[i].gtype, "G01")
+            self.assertTrue(gcode.commands[i].is_gtype("G01"))
 
             # check if parameters were found
             self.assertEqual(gcode.commands[i].has_param("X"), True)
@@ -135,6 +135,18 @@ class GcodeParserTest(unittest.TestCase):
             # check if values were found
             self.assertEqual(gcode.commands[i].get_param("X"), 50)
             self.assertEqual(gcode.commands[i].get_param("Y"), 50)
+
+    def test_g01_equal_g1(self):
+        gcode = GCode()
+        gcode.load_file("gc_g1_equals_g01.gcode")
+
+        self.assertEqual(len(gcode.commands), 3)  # three commands should be loaded
+
+        for i in range(3):
+            # check all three versions of the command against all three variants
+            self.assertTrue(gcode.commands[i].is_gtype("G1"))
+            self.assertTrue(gcode.commands[i].is_gtype("G01"))
+            self.assertTrue(gcode.commands[i].is_gtype("G001"))
 
 
 if __name__ == '__main__':
