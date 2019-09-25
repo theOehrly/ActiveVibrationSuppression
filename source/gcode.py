@@ -58,7 +58,7 @@ class GCode:
             gcommand.original = line
 
         # remove line breaks, they are not needed and may cause problems
-        line = line.replace("\r\n", "").replace("\n", "")
+        line = line.replace("\r", "").replace("\n", "")
 
         i_split = line.find(';')  # get index for start of comment (if any)
 
