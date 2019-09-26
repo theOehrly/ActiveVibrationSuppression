@@ -1,4 +1,3 @@
-# TODO adhere closer to NIST; treat G/M/T like words
 # TODO use NIST naming conventions
 
 
@@ -44,11 +43,9 @@ class GCode:
         :type linenumber: int
         :return: nothing
         """
-        if not line:
-            return
 
         gcommand = GCommand()
-        gcommand.linenumber = linenumber
+        gcommand.linenumber_file = linenumber
 
         # save original line for writing data again later or for debugging
         if self.keep_invalid or self.keep_raw:
@@ -57,17 +54,10 @@ class GCode:
         # ###################
         # #### clean up data
 
-        # remove line breaks, they are not needed and may cause problems
+        # remove line breaks and tabs, they are not needed and may cause problems
         line = line.replace("\r", "").replace("\n", "").replace("\t", " ")
-
-        # find first character in line. prevents fail in case of leading spaces
-        i = 0  # should not be necessary; make sure i is defined after the for loop
-        for i in range(len(line)):
-            if not line[i].isspace():
-                # yes this also accepts invalid first characters
-                # but I want to keep data clean up and interpretation seperate
-                break
-        line = line[i:]
+        if not line:
+            return  # line was empty
 
         # ####################
         # #### interpret data
@@ -105,30 +95,17 @@ class GCode:
 
         return instruction, comment
 
-    def _segment_instructions(self, gcommand, instruction, line, linenumber):
+    @staticmethod
+    def _segment_instructions(instruction):
         """Segment a gcode instruction line into its parameters.
 
-        Example: "G02 X6 Y70" --> ("G02 ", "X6 ", "Y70")
-        Space characters are not removed as they don't matter when converting to float later
+        Example: "G02X6Y70" --> ("G02", "X6", "Y70")
+        (Space or tab characters are already remvoved beforehand
 
-        :param gcommand: class instance of current gcommand
-        :type gcommand: GCommand
         :param instruction: the instruction part of the current line
         :type instruction: str
-        :param line: the full gcode line
-        :type line: str
-        :param linenumber: index of the line in the file
-        :type linenumber: int
         :return: list of strings or None in case of error
         """
-        # check that there is a space infront of every parameter (parameter -> alpha character)
-        # also don't check the very first character as there are no leading spaces before (obviously)
-        for i in range(1, len(instruction)):
-            if instruction[i].isalpha() and not instruction[i - 1] == " ":
-                self._invalid_line(gcommand, line, linenumber,
-                                   add_msg="Invalid formatting - missing space character before parameter '{}' at "
-                                           "postion {}".format(instruction[i], i + 1))
-                return
 
         # segment instruction, therefore split string at alpha characters
         # each segement is appended to the "segmented" list
@@ -166,29 +143,12 @@ class GCode:
         :return: True if successfull, else False"""
 
         # replace multiple spaces with a single space so that only single spaces occur
-        while " " * 2 in instruction:
-            instruction = instruction.replace(" " * 2, " ")
+        instruction = instruction.replace(" ", "")
 
         # split the instruction into mutliple segments, each containing one parameter
-        segmented = self._segment_instructions(gcommand, instruction, line, linenumber)
+        segmented = self._segment_instructions(instruction)
         if not segmented:
             return False  # can happen in case of invalid lines
-
-        # parse first parameter, i.e. Gcode type separate
-        gtype = segmented.pop(0)
-        if not gtype[0] in "GMTgmt":
-            # first charcter needs to be one of upper or lower case G, M, T
-            self._invalid_line(gcommand, line, linenumber,
-                               add_msg="Missing G, M or T parameter or parameter is not in first position")
-            return False
-
-        # Set the gtype. This automatically also sets gcommand.gnumber and gcommand.g/m/t
-        try:
-            gcommand.set_gtype(gtype)
-        except ValueError:
-            self._invalid_line(gcommand, line, linenumber,
-                               add_msg="Invalid command: '{}'".format(gtype))
-            return False
 
         # split each parameter into a letter and a corresponding float
         for param in segmented:
@@ -197,16 +157,15 @@ class GCode:
                 value = float(param[1:])
             except ValueError:
                 self._invalid_line(gcommand, line, linenumber,
-                                   add_msg="Failed to seperate variable name and value")
+                                   add_msg="Failed to seperate variable name and value: '{}'".format(param))
                 return False
 
-            # check for multiple commands on one line; T is allowed to occur with M or G commands
-            if key.upper() == "G" or key.upper() == "M":
-                self._invalid_line(gcommand, line, linenumber,
-                                   add_msg="Command '{}' is not allowed as a parameter".format(param))
+            try:
+                gcommand.set_param(key, value)
+            except ValueError:
+                # intentionally raised when a parameter occurs for the second time on the same line
+                self._invalid_line(gcommand, line, linenumber, add_msg="Invalid parameter '{}'".format(param))
                 return False
-
-            gcommand.set_param(key, value)
 
         return True
 
@@ -244,92 +203,23 @@ class GCode:
 
 class GCommand:
     def __init__(self):
-        """This class holds data for a single GCommand.
-        """
-        self._valid = False  # set to False by default; forced to actively mark commands as valid!
+        """This class holds data for a single GCommand."""
 
-        self._gtype = str()
-        self._gnumber = int()
-        self._g = False
-        self._m = False
-        self._t = False
+        self._valid = False  # set to False by default; forced to actively mark commands as valid!
 
         self._parameters = dict()
         self.comment = str()
 
-        self.linenumber = int()
+        self.linenumber_file = int()  # linenumber in file; also counts comment only lines and blank lines
+        self.linenumber_gcode = -1  # does not exist by default; is provided optionally in gcode
 
         self.original = str()  # only used when debug option is set for class <GCode>
 
-    def set_gtype(self, gtype):
-        """Sets the gtype, also automatically sets the gnumber accordingly.
+    def is_comment_only(self):
+        """Check if this line only consists of a comment and has no actual gcode."""
+        return True if not self._parameters else False
 
-        :param gtype: GCode command; example 'G15'
-        :type gtype: str
-        :return: None
-        """
-        self._gtype = gtype.strip(" ").upper()
-        self._set_gnumber(int(gtype[1:]))
-
-        if self._gtype[0] == 'G':
-            self._g = True
-        elif self._gtype[0] == 'M':
-            self._m = True
-        elif self._gtype[0] == "T":
-            self._t = True
-        else:
-            raise ValueError
-
-    def get_gtype(self):
-        """Returns this commands gtype.
-
-        gtype is for example 'G15"
-
-        :return: str
-        """
-        return self._gtype
-
-    def is_gtype(self, gtype):
-
-        """Check if this is the same command as the provided gtype.
-
-        This will treat G1 equal to G01 equal to G001 and so on.
-
-        :param gtype: GCode command; example 'G15'
-        :type gtype: str
-        :return: bool
-        """
-        return True if (gtype[0] == self._gtype[0] and self.is_gnumber(int(gtype[1:]))) else False
-
-    def _set_gnumber(self, gnumber):
-        """Sets this command's gcode number.
-
-        Don't use this directly. Always use set_gtype to prevent conflicting data.
-
-        :param gnumber: Number of the gcode command. E.g. 15 for G15
-        :type gnumber: int
-        :return: None
-        """
-        self._gnumber = gnumber
-
-    def get_gnumber(self):
-        """Get this command's gcode number.
-
-        :return: int: Number of this gcode command. E.g. 15 for G15
-        """
-        return self._gnumber
-
-    def is_gnumber(self, gnumber):
-        """Check if this command's gcode number is the same as the provided number.
-
-        :param gnumber: Number of the gcode command. E.g. 15 for G15
-        :type gnumber: int
-        :return: bool
-        """
-        return True if gnumber == self._gnumber else False
-
-    def set_param(self, param, value):
-        # TODO do not overwrite existing parameters by default; add flag for that
+    def set_param(self, param, value, overwrite=False):
         """Add a parameter/value pair.
 
         This will create a new parameter or overwrite existing ones.
@@ -338,9 +228,17 @@ class GCommand:
         :type param: str
         :param value: Value for Parameter
         :type value: int/float
+        :param overwrite: Only overwrite existing parameters if set to true
+        :type overwrite: bool
         :return: None
         """
-        self._parameters[param.upper()] = float(value)
+        if param.upper() == "N":
+            self.linenumber_gcode = int(value)  # line numbers are treated seperately
+
+        elif self.has_param(param) and not overwrite:
+            raise ValueError
+        else:
+            self._parameters[param.upper()] = float(value)
 
     def get_param(self, param):
         """Return the value associated with the given parameter.
@@ -368,27 +266,6 @@ class GCommand:
         :return: None"""
 
         self._parameters.clear()
-
-    def g(self):
-        """Check if this command is a G command.
-
-        Example command: 'G01'
-        """
-        return True if self._g else False
-
-    def m(self):
-        """Check if this command is a M command.
-
-        Example command: 'M01'
-        """
-        return True if self._m else False
-
-    def t(self):
-        """Check if this command is a T command.
-
-        Example command: 'T01'
-        """
-        return True if self._t else False
 
     def is_valid(self):
         """Is this a valid line/command?
