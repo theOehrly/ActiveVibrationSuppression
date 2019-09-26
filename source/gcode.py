@@ -1,3 +1,6 @@
+# TODO adhere closer to NIST; treat G/M/T like words
+# TODO use NIST naming conventions
+
 
 class GCode:
     def __init__(self, keep_invalid=False, ignore_invalid=False, keep_raw=False):
@@ -98,14 +101,15 @@ class GCode:
         else:
             # split instruction and comment
             instruction = line[0:i_split]  # start to comment start index
-            comment = str(line[i_split:])  # comment start index to end
+            comment = line[i_split:]  # comment start index to end
 
         return instruction, comment
 
     def _segment_instructions(self, gcommand, instruction, line, linenumber):
         """Segment a gcode instruction line into its parameters.
 
-        Example: "G02 X6 Y70" --> ("G02 ", "X6 ", "Y70 ")
+        Example: "G02 X6 Y70" --> ("G02 ", "X6 ", "Y70")
+        Space characters are not removed as they don't matter when converting to float later
 
         :param gcommand: class instance of current gcommand
         :type gcommand: GCommand
@@ -285,7 +289,7 @@ class GCommand:
         """
         return self._gtype
 
-    def is_gtype(self, gtype):         # TODO write test
+    def is_gtype(self, gtype):
 
         """Check if this is the same command as the provided gtype.
 
@@ -325,6 +329,7 @@ class GCommand:
         return True if gnumber == self._gnumber else False
 
     def set_param(self, param, value):
+        # TODO do not overwrite existing parameters by default; add flag for that
         """Add a parameter/value pair.
 
         This will create a new parameter or overwrite existing ones.
