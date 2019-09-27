@@ -1,33 +1,30 @@
 # TODO fix introduction
 
-
-"""
-########################################################
-GCode Naming Conventions According to NIST RS274NGC V3
-------------------------------------------------------
-see "https://www.nist.gov/publications/nist-rs274ngc-interpreter-version-3" for comparison
-
-
-Example Line: N01 G02 X50 Y60 ; example line
-
-
-:Block:        Lines are also sometimes called Blocks
-:Word:         A letter followed by a number is considered a Word, e.g 'G02' or 'X50'
-:Commands:     Words starting with "G", "M" or "T" are Commands.
-:Arguments:    Words starting with orther characters than "G", "M", "T" or "N" are Arguments
-:Line Number:  "N01" or in genreral "N*" is a Line Number. They are optional and not considered to be a word.
-               Line Numbers must be at the very beginning of a Line
-
-The input is NOT case sensitive. That means "G01 X50" is the same as "g01 x50".
-
-
-##########################################################
-Explanantions concerning specifically this software
----------------------------------------------------
-Where this code uses a variable called "linenumber" this refers to the actual line number in a file.
-If the Line Number as defined above ("N*") is meant this is specifically refered to as "linenumber_gcode".
-The line number in a file is, where both versions are used, also refered to as "linenumber_file" for clarity.
-"""
+# ########################################################
+# GCode Naming Conventions According to NIST RS274NGC V3
+# ------------------------------------------------------
+# see "https://www.nist.gov/publications/nist-rs274ngc-interpreter-version-3" for comparison
+#
+#
+# Example Line: N01 G02 X50 Y60 ; example line
+#
+#
+# Block:        Lines are also sometimes called Blocks
+# Word:         A letter followed by a number is considered a Word, e.g 'G02' or 'X50'
+# Commands:     Words starting with "G", "M" or "T" are Commands.
+# Arguments:    Words starting with orther characters than "G", "M", "T" or "N" are Arguments
+# Line Number:  "N01" or in genreral "N*" is a Line Number. They are optional and not considered to be a word.
+#                Line Numbers must be at the very beginning of a Line
+#
+# The input is NOT case sensitive. That means "G01 X50" is the same as "g01 x50".
+#
+#
+# ##########################################################
+# Explanantions concerning specifically this software
+# ---------------------------------------------------
+# Where this code uses a variable called "linenumber" this refers to the actual line number in a file.
+# If the Line Number as defined above ("N*") is meant this is specifically refered to as "linenumber_gcode".
+# The line number in a file is, where both versions are used, also refered to as "linenumber_file" for clarity.
 
 
 class GCode:
@@ -35,7 +32,7 @@ class GCode:
         """ This class holds all current Gcode as a list of GCommands.
 
         :param keep_invalid: Should invalid lines be kept anyways as raw data?
-        Can be usefull if gcode should be written to a file again.
+            Can be usefull if gcode should be written to a file again.
         :type keep_invalid: bool
         :param ignore_invalid: Should invalid lines be ignored? Raises a ValueError if not.
         :type ignore_invalid: bool
