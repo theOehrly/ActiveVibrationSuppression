@@ -1,5 +1,11 @@
-# TODO fix introduction
-
+# ##################################
+# AVS GCode Parser
+#
+# Copyright 2019, Philipp Schaefer
+# ##################################
+# GLine class: Data from a single line of GCode
+# GCode class: Holds multiple GLines and does parsing of input text data
+#
 # ########################################################
 # GCode Naming Conventions According to NIST RS274NGC V3
 # ------------------------------------------------------
