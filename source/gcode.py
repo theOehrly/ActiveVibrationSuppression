@@ -50,6 +50,26 @@ class GCode:
         self.keep_raw = keep_raw
 
         self._lines = list()
+        self._i_iter_lines = 0
+
+    def __iter__(self):
+        """Get the iterator for iterating through all lines of GCode.
+
+        :return: self
+        """
+        self._i_iter_lines = 0
+        return self
+
+    def __next__(self):
+        """Get the next line of GCode.
+
+        :returns: GLine
+        """
+        self._i_iter_lines += 1
+        if self._i_iter_lines <= len(self._lines):
+            return self._lines[self._i_iter_lines - 1]
+        else:
+            raise StopIteration
 
     def load_file(self, fpath):
         """Reads a new file and parses all GCode in it.
