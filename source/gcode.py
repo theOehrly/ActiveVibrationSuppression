@@ -71,6 +71,20 @@ class GCode:
         else:
             raise StopIteration
 
+    def __getitem__(self, key):
+        """Get the GLine object at the specified position.
+
+        :param key: (List)index of GLine object
+        :type key: int
+        :returns: GLine"""
+        return self._lines[key]
+
+    def __len__(self):
+        """Get the number of glines.
+
+        :returns int"""
+        return len(self._lines)
+
     def load_file(self, fpath):
         """Reads a new file and parses all GCode in it.
 
