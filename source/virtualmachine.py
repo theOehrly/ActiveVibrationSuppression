@@ -23,6 +23,7 @@ class Machine:
 
         self.create_path_segments()
         self.calculate_path_segments()
+        self.calculate_acceleration_segements()
 
     def create_path_segments(self):
         nominal_speed = 0
@@ -118,7 +119,66 @@ class Machine:
                 seg.entry_speed = max_entry_speed
 
     def calculate_acceleration_segements(self):
-        pass
+        # calculate the acceleration within a segment so that the duration of the segment is minimized. Therefore
+        # the speed needs to be as high as possible while staying within the boundaries of entry, exit and nominal
+        # speed. Acceleration is always either the nominal acceleration or zero.
+        #
+        #                      plateau
+        #                    +--------+  <-- nominal_speed
+        #                   /          \
+        # entry_speed -->  +            \
+        #                  |             +  <-- exit_speed
+        #                  +-------------+
+        #                   --> distance
+        #
+
+        for seg in self.path_segments:
+            if seg.distance == 0:
+                continue  # not a segment with movement
+
+            maximum_possible_speed = math.sqrt(self.ACCELERATION * seg.distance + (seg.entry_speed ** 2 + seg.exit_speed ** 2) / 2)
+
+            # calculated the acceleration and deceleration durations first
+            if maximum_possible_speed > seg.nominal_speed:
+                # maximum speed is limited by nominal speed; a plateau exists; three acceleration segments
+                # for each acceleration segment the duration of the segment, the cover distance and the position at the
+                # end of the segment is calculated
+
+                t_acc = (seg.nominal_speed - seg.entry_speed) / self.ACCELERATION
+                t_dcc = (seg.nominal_speed - seg.exit_speed) / self.ACCELERATION
+
+            else:
+                # maximum speed is limited by the maximum_possible_speed (acceleration/distance/... limit)
+                # no plateau; two acceleration segments
+
+                t_acc = (maximum_possible_speed - seg.entry_speed) / self.ACCELERATION
+                t_dcc = (seg.nominal_speed - seg.exit_speed) / self.ACCELERATION
+
+            # acceleration from entry to nominal speed
+            d_acc = seg.entry_speed * t_acc + 0.5 * self.ACCELERATION * (t_acc ** 2)
+            d_acc_ratio = ((d_acc / seg.distance) - 1)  # minus one because seg.x/seg.y is end positon after segment
+            x_acc = seg.x + d_acc_ratio * seg.x_distance
+            y_acc = seg.y + d_acc_ratio * seg.y_distance
+            acc_seg = AccelerationSegment(seg, self.ACCELERATION, d_acc, t_acc, x_acc, y_acc)
+
+            self.acceleration_segements.append(acc_seg)
+
+            # deceleration from nominal to exit speed
+            d_dcc = seg.exit_speed * t_dcc + 0.5 * self.ACCELERATION * (t_dcc ** 2)
+            dcc_seg = AccelerationSegment(seg, self.ACCELERATION, d_dcc, t_dcc, seg.x, seg.y)
+
+            if maximum_possible_speed > seg.nominal_speed:
+                # plateau segment
+                d_plt = seg.distance - d_acc - d_dcc
+                t_plt = d_plt / seg.nominal_speed
+                d_dcc_ratio = (d_dcc / seg.distance)  # !! --> subtract deceleration distance to get plateau end
+                x_plt = seg.x - seg.x_distance * d_dcc_ratio
+                y_plt = seg.y - seg.y_distance * d_dcc_ratio
+                plt_seg = AccelerationSegment(seg, 0, d_plt, t_plt, x_plt, y_plt)
+
+                self.acceleration_segements.append(plt_seg)
+
+            self.acceleration_segements.append(dcc_seg)
 
 
 class PathSegment:
@@ -143,9 +203,13 @@ class PathSegment:
 
 
 class AccelerationSegment:
-    def __init__(self, pathsegment):
+    def __init__(self, pathsegment, acceleration, distance, duration, x, y):
         self.pathsegment = pathsegment
+
+        self.x = x  # postion afer movement [mm]
+        self.y = y
 
         self.acceleration = 0               # acceleration in this segment [mm/s^2]
 
         self.distance = 0                   # length of this segment [mm]
+        self.duaration = 0                  # duration of the segment [s]
