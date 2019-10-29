@@ -5,7 +5,7 @@ class Machine:
     def __init__(self, gcode):
         self.gcode = gcode
         self.path_segments = list()
-        self.acceleration_segements = list()
+        self.acceleration_segments = list()
 
         self.x = float(0)
         self.y = float(0)
@@ -171,9 +171,9 @@ class Machine:
                 plt_seg.x = path_seg.x - path_seg.x_distance * d_dcc_ratio
                 plt_seg = path_seg.y - path_seg.y_distance * d_dcc_ratio
 
-            self.acceleration_segements.append(acc_seg)
-            self.acceleration_segements.append(plt_seg) if plt_seg else None  # only append if exists
-            self.acceleration_segements.append(dcc_seg)
+            self.acceleration_segments.append(acc_seg)
+            self.acceleration_segments.append(plt_seg) if plt_seg else None  # only append if exists
+            self.acceleration_segments.append(dcc_seg)
 
 
 class PathSegment:
