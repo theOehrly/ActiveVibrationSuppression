@@ -132,52 +132,47 @@ class Machine:
         #                   --> distance
         #
 
-        for seg in self.path_segments:
-            if seg.distance == 0:
+        for path_seg in self.path_segments:
+            if path_seg.distance == 0:
                 continue  # not a segment with movement
 
-            maximum_possible_speed = math.sqrt(self.ACCELERATION * seg.distance + (seg.entry_speed ** 2 + seg.exit_speed ** 2) / 2)
+            acc_seg = AccelerationSegment(path_seg)
+            plt_seg = None
+            dcc_seg = AccelerationSegment(path_seg)
+
+            maximum_possible_speed = math.sqrt(self.ACCELERATION * path_seg.distance + (path_seg.entry_speed ** 2 + path_seg.exit_speed ** 2) / 2)
+
+            limiting_speed = min(path_seg.nominal_speed, maximum_possible_speed)
 
             # calculated the acceleration and deceleration durations first
-            if maximum_possible_speed > seg.nominal_speed:
-                # maximum speed is limited by nominal speed; a plateau exists; three acceleration segments
-                # for each acceleration segment the duration of the segment, the cover distance and the position at the
-                # end of the segment is calculated
-
-                t_acc = (seg.nominal_speed - seg.entry_speed) / self.ACCELERATION
-                t_dcc = (seg.nominal_speed - seg.exit_speed) / self.ACCELERATION
-
-            else:
-                # maximum speed is limited by the maximum_possible_speed (acceleration/distance/... limit)
-                # no plateau; two acceleration segments
-
-                t_acc = (maximum_possible_speed - seg.entry_speed) / self.ACCELERATION
-                t_dcc = (seg.nominal_speed - seg.exit_speed) / self.ACCELERATION
+            acc_seg.duration = (limiting_speed - path_seg.entry_speed) / self.ACCELERATION
+            dcc_seg.duration = (limiting_speed - path_seg.exit_speed) / self.ACCELERATION
 
             # acceleration from entry to nominal speed
-            d_acc = seg.entry_speed * t_acc + 0.5 * self.ACCELERATION * (t_acc ** 2)
-            d_acc_ratio = ((d_acc / seg.distance) - 1)  # minus one because seg.x/seg.y is end positon after segment
-            x_acc = seg.x + d_acc_ratio * seg.x_distance
-            y_acc = seg.y + d_acc_ratio * seg.y_distance
-            acc_seg = AccelerationSegment(seg, self.ACCELERATION, d_acc, t_acc, x_acc, y_acc)
-
-            self.acceleration_segements.append(acc_seg)
+            acc_seg.acceleration = self.ACCELERATION
+            acc_seg.distance = path_seg.entry_speed * acc_seg.duration + 0.5 * self.ACCELERATION * (acc_seg.duration ** 2)
+            d_acc_ratio = ((acc_seg.distance / path_seg.distance) - 1)  # minus one because path_seg.x/y is end position after segment
+            acc_seg.x = path_seg.x + d_acc_ratio * path_seg.x_distance
+            acc_seg.y = path_seg.y + d_acc_ratio * path_seg.y_distance
 
             # deceleration from nominal to exit speed
-            d_dcc = seg.exit_speed * t_dcc + 0.5 * self.ACCELERATION * (t_dcc ** 2)
-            dcc_seg = AccelerationSegment(seg, -self.ACCELERATION, d_dcc, t_dcc, seg.x, seg.y)
+            dcc_seg.acceleration = -self.ACCELERATION
+            dcc_seg.distance = path_seg.exit_speed * dcc_seg.duration + 0.5 * self.ACCELERATION * (dcc_seg.duration ** 2)
+            dcc_seg.x = path_seg.x
+            dcc_seg.y = path_seg.y
 
-            if maximum_possible_speed > seg.nominal_speed:
+            if maximum_possible_speed > path_seg.nominal_speed:
                 # plateau segment
-                d_plt = seg.distance - d_acc - d_dcc
-                t_plt = d_plt / seg.nominal_speed
-                d_dcc_ratio = (d_dcc / seg.distance)  # !! --> subtract deceleration distance to get plateau end
-                x_plt = seg.x - seg.x_distance * d_dcc_ratio
-                y_plt = seg.y - seg.y_distance * d_dcc_ratio
-                plt_seg = AccelerationSegment(seg, 0, d_plt, t_plt, x_plt, y_plt)
+                plt_seg = AccelerationSegment(path_seg)
+                plt_seg.distance = path_seg.distance - acc_seg.distance - dcc_seg.distance
+                plt_seg.duration = plt_seg.distance / path_seg.nominal_speed
+                # subtract deceleration distance from path segment end position to get plateau end
+                d_dcc_ratio = (dcc_seg.distance / path_seg.distance)
+                plt_seg.x = path_seg.x - path_seg.x_distance * d_dcc_ratio
+                plt_seg = path_seg.y - path_seg.y_distance * d_dcc_ratio
 
-                self.acceleration_segements.append(plt_seg)
-
+            self.acceleration_segements.append(acc_seg)
+            self.acceleration_segements.append(plt_seg) if plt_seg else None  # only append if exists
             self.acceleration_segements.append(dcc_seg)
 
 
@@ -185,7 +180,7 @@ class PathSegment:
     def __init__(self, x, y, nominal_speed, gline):
         self.gline = gline
 
-        self.x = x  # postion afer movement [mm]
+        self.x = x  # position after movement [mm]
         self.y = y
 
         self.nominal_speed = nominal_speed  # target/maximum speed for this segment [mm/s]
@@ -203,13 +198,13 @@ class PathSegment:
 
 
 class AccelerationSegment:
-    def __init__(self, pathsegment, acceleration, distance, duration, x, y):
+    def __init__(self, pathsegment):
         self.pathsegment = pathsegment
 
-        self.x = x  # postion afer movement [mm]
-        self.y = y
+        self.x = 0  # position after movement [mm]
+        self.y = 0
 
         self.acceleration = 0               # acceleration in this segment [mm/s^2]
 
         self.distance = 0                   # length of this segment [mm]
-        self.duaration = 0                  # duration of the segment [s]
+        self.duration = 0                  # duration of the segment [s]
