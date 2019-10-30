@@ -52,8 +52,8 @@ class Machine:
 
             if seg.distance != 0:
                 # unit vectors
-                seg.x_unit_vector = seg.x_distance / seg.distance
-                seg.y_unit_vector = seg.y_distance / seg.distance
+                seg.x_unit_vec = seg.x_distance / seg.distance
+                seg.y_unit_vec = seg.y_distance / seg.distance
 
                 # maximum entry speed
                 # is the minimum of previous nominal speed, current nominal speed and maximum junction speed
