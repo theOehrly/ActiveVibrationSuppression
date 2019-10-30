@@ -171,7 +171,7 @@ class Machine:
                 # subtract deceleration distance from path segment end position to get plateau end
                 d_dcc_ratio = (dcc_seg.distance / path_seg.distance)
                 plt_seg.x = path_seg.x - path_seg.x_distance * d_dcc_ratio
-                plt_seg = path_seg.y - path_seg.y_distance * d_dcc_ratio
+                plt_seg.y = path_seg.y - path_seg.y_distance * d_dcc_ratio
 
             self.acceleration_segments.append(acc_seg)
             self.acceleration_segments.append(plt_seg) if plt_seg else None  # only append if exists
