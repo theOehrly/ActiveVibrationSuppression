@@ -150,6 +150,7 @@ class Machine:
 
             # acceleration from entry to nominal speed
             acc_seg.acceleration = self.ACCELERATION
+            acc_seg.x_acceleration, acc_seg.y_acceleration = self.vectorize(path_seg, self.ACCELERATION)
             acc_seg.distance = path_seg.entry_speed * acc_seg.duration + 0.5 * self.ACCELERATION * (acc_seg.duration ** 2)
             d_acc_ratio = ((acc_seg.distance / path_seg.distance) - 1)  # minus one because path_seg.x/y is end position after segment
             acc_seg.x = path_seg.x + d_acc_ratio * path_seg.x_distance
@@ -157,6 +158,7 @@ class Machine:
 
             # deceleration from nominal to exit speed
             dcc_seg.acceleration = -self.ACCELERATION
+            dcc_seg.x_acceleration, dcc_seg.y_acceleration = self.vectorize(path_seg, -self.ACCELERATION)
             dcc_seg.distance = path_seg.exit_speed * dcc_seg.duration + 0.5 * self.ACCELERATION * (dcc_seg.duration ** 2)
             dcc_seg.x = path_seg.x
             dcc_seg.y = path_seg.y
@@ -174,6 +176,12 @@ class Machine:
             self.acceleration_segments.append(acc_seg)
             self.acceleration_segments.append(plt_seg) if plt_seg else None  # only append if exists
             self.acceleration_segments.append(dcc_seg)
+
+    @staticmethod
+    def vectorize(path_seg, value):
+        x_value = path_seg.x_unit_vec * value
+        y_value = path_seg.y_unit_vec * value
+        return x_value, y_value
 
 
 class PathSegment:
@@ -205,6 +213,8 @@ class AccelerationSegment:
         self.y = 0
 
         self.acceleration = 0               # acceleration in this segment [mm/s^2]
+        self.x_acceleration = 0
+        self.y_acceleration = 0
 
         self.distance = 0                   # length of this segment [mm]
         self.duration = 0                  # duration of the segment [s]
