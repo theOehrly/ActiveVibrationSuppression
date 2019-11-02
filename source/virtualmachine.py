@@ -110,13 +110,16 @@ class Machine:
 
         # reverse pass through segments to check that deceleration from entry speed to
         # exit speed is possible, else reduce entry speed
+        next_seg = PathSegment(0, 0, 0, None)
         for i in range(len(self.path_segments)-1, 0, -1):
             seg = self.path_segments[i]
 
-            max_entry_speed = seg.exit_speed + math.sqrt(2 * self.ACCELERATION * seg.distance)
+            max_entry_speed = next_seg.entry_speed + math.sqrt(2 * self.ACCELERATION * seg.distance)
             if max_entry_speed < seg.entry_speed:
                 seg.max_entry_speed = max_entry_speed
                 seg.entry_speed = max_entry_speed
+
+            next_seg = seg
 
     def calculate_acceleration_segments(self):
         # calculate the acceleration within a segment so that the duration of the segment is minimized. Therefore
@@ -127,12 +130,18 @@ class Machine:
         #                    +--------+  <-- nominal_speed
         #                   /          \
         # entry_speed -->  +            \
-        #                  |             +  <-- exit_speed
+        #                  |             +  <-- exit_speed == next_entry_speed
         #                  +-------------+
         #                   --> distance
         #
 
-        for path_seg in self.path_segments:
+        segments = self.path_segments + [PathSegment(0, 0, 0, None)]
+        # we need an all zero path segment at the end to have the last path_seg decelerate to zero
+
+        for i in range(len(segments)-1):
+            path_seg = segments[i]
+            next_path_seg = segments[i+1]
+
             if path_seg.distance == 0:
                 continue  # not a segment with movement
 
@@ -140,13 +149,13 @@ class Machine:
             plt_seg = None
             dcc_seg = AccelerationSegment(path_seg)
 
-            maximum_possible_speed = math.sqrt(self.ACCELERATION * path_seg.distance + (path_seg.entry_speed ** 2 + path_seg.exit_speed ** 2) / 2)
+            maximum_possible_speed = math.sqrt(self.ACCELERATION * path_seg.distance + (path_seg.entry_speed ** 2 + next_path_seg.entry_speed ** 2) / 2)
 
             limiting_speed = min(path_seg.nominal_speed, maximum_possible_speed)
 
             # calculated the acceleration and deceleration durations first
             acc_seg.duration = (limiting_speed - path_seg.entry_speed) / self.ACCELERATION
-            dcc_seg.duration = (limiting_speed - path_seg.exit_speed) / self.ACCELERATION
+            dcc_seg.duration = (limiting_speed - next_path_seg.entry_speed) / self.ACCELERATION
 
             # acceleration from entry to nominal speed
             acc_seg.acceleration = self.ACCELERATION
@@ -156,10 +165,10 @@ class Machine:
             acc_seg.x = path_seg.x + d_acc_ratio * path_seg.x_distance
             acc_seg.y = path_seg.y + d_acc_ratio * path_seg.y_distance
 
-            # deceleration from nominal to exit speed
+            # deceleration from nominal to exit speed / next entry speed
             dcc_seg.acceleration = -self.ACCELERATION
             dcc_seg.x_acceleration, dcc_seg.y_acceleration = self.vectorize(path_seg, -self.ACCELERATION)
-            dcc_seg.distance = path_seg.exit_speed * dcc_seg.duration + 0.5 * self.ACCELERATION * (dcc_seg.duration ** 2)
+            dcc_seg.distance = next_path_seg.entry_speed * dcc_seg.duration + 0.5 * self.ACCELERATION * (dcc_seg.duration ** 2)
             dcc_seg.x = path_seg.x
             dcc_seg.y = path_seg.y
 
@@ -195,7 +204,6 @@ class PathSegment:
 
         self.entry_speed = 0            # actual speed at beginning of segment [mm/s]
         self.max_entry_speed = 0        # maximum speed at beginning of segment [mm/s]
-        self.exit_speed = 0             # speed when exiting the segment [mm/s]
 
         self.distance = 0                   # length of this segment [mm]
         self.x_distance = 0                 # x component of length  [mm]
