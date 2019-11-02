@@ -237,18 +237,18 @@ class AccelerationFromTime:
         self.current_seg = next(self.seg_iter)
 
         self.current_seg_end_time = self.current_seg.duration
-        self.time = 0
+        self.current_time = 0
 
-    def __getitem__(self, t):
-        if t < self.time:
+    def __getitem__(self, time):
+        if time < self.current_time:
             raise ValueError("Current time index is smaller than previous time index. This class is unidirectional!")
 
-        elif self.current_seg_end_time < t:
+        elif self.current_seg_end_time < time:
             # advance segments as far as necessary
-            while self.current_seg_end_time < t:
+            while self.current_seg_end_time < time:
                 self.current_seg = next(self.seg_iter)
                 self.current_seg_end_time += self.current_seg.duration
 
-        self.time += t
+        self.current_time = time
 
         return self.current_seg.get_accelerations()
