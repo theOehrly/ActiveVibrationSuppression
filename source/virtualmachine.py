@@ -193,6 +193,16 @@ class Machine:
         y_value = path_seg.y_unit_vec * value
         return x_value, y_value
 
+    def get_path_coordinates(self):
+        coords_x = [0, ]
+        coords_y = [0, ]
+
+        for seg in self.path_segments:
+            coords_x.append(seg.x)
+            coords_y.append(seg.y)
+
+        return coords_x, coords_y
+
 
 class PathSegment:
     def __init__(self, x, y, nominal_speed, gline, machine):
