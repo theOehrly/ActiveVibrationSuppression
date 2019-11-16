@@ -38,7 +38,7 @@ class Machine:
             if gline.has_word('Y'):
                 y = gline.get_word('Y')
 
-            self.path_segments.append(PathSegment(x, y, nominal_speed, gline))
+            self.path_segments.append(PathSegment(x, y, nominal_speed, gline, self))
 
     def calculate_path_segments(self):
         for i in range(1, len(self.path_segments)):
@@ -110,7 +110,7 @@ class Machine:
 
         # reverse pass through segments to check that deceleration from entry speed to
         # exit speed is possible, else reduce entry speed
-        next_seg = PathSegment(0, 0, 0, None)
+        next_seg = PathSegment(0, 0, 0, None, self)
         for i in range(len(self.path_segments)-1, 0, -1):
             seg = self.path_segments[i]
 
@@ -135,7 +135,7 @@ class Machine:
         #                   --> distance
         #
 
-        segments = self.path_segments + [PathSegment(0, 0, 0, None)]
+        segments = self.path_segments + [PathSegment(0, 0, 0, None, self)]
         # we need an all zero path segment at the end to have the last path_seg decelerate to zero
 
         for i in range(len(segments)-1):
@@ -194,8 +194,9 @@ class Machine:
 
 
 class PathSegment:
-    def __init__(self, x, y, nominal_speed, gline):
+    def __init__(self, x, y, nominal_speed, gline, machine):
         self.gline = gline
+        self.machine = machine
 
         self.x = x  # position after movement [mm]
         self.y = y
@@ -204,6 +205,7 @@ class PathSegment:
 
         self.entry_speed = 0            # actual speed at beginning of segment [mm/s]
         self.max_entry_speed = 0        # maximum speed at beginning of segment [mm/s]
+        self.max_reached_speed = 0      # maximum speed that is actually reached in this segment [mm/s]
 
         self.distance = 0                   # length of this segment [mm]
         self.x_distance = 0                 # x component of length  [mm]
@@ -215,7 +217,7 @@ class PathSegment:
 
 class AccelerationSegment:
     def __init__(self, pathsegment):
-        self.pathsegment = pathsegment
+        self.path_seg = pathsegment
 
         self.x = 0  # position after movement [mm]
         self.y = 0
@@ -231,11 +233,12 @@ class AccelerationSegment:
         return self.acceleration, self.x_acceleration, self.y_acceleration
 
 
-class AccelerationFromTime:
+class ValueFromTime:
     def __init__(self, machine):
         self.seg_iter = iter(machine.acceleration_segments)
         self.current_seg = next(self.seg_iter)
 
+        self.current_seg_start_time = 0
         self.current_seg_end_time = self.current_seg.duration
         self.current_time = 0
 
@@ -246,9 +249,38 @@ class AccelerationFromTime:
         elif self.current_seg_end_time < time:
             # advance segments as far as necessary
             while self.current_seg_end_time < time:
-                self.current_seg = next(self.seg_iter)
+                try:
+                    self.current_seg = next(self.seg_iter)
+                except StopIteration:
+                    raise IndexError
+
+                self.current_seg_start_time = self.current_seg_end_time
                 self.current_seg_end_time += self.current_seg.duration
 
         self.current_time = time
 
-        return self.current_seg.get_accelerations()
+        return self._return_value(time)
+
+    def _return_value(self, time):
+        pass
+
+
+class AccelerationFromTime(ValueFromTime):
+    def _return_value(self, time):
+        self.current_seg.get_accelerations()
+
+
+class SpeedFromTime(ValueFromTime):
+    def _return_value(self, time):
+        if not self.current_seg.acceleration:
+            return self.current_seg.path_seg.max_reached_speed
+
+        t_acc = time - self.current_seg_start_time
+        acc = self.current_seg.acceleration
+
+        if self.current_seg.acceleration > 0:
+            v_in = self.current_seg.path_seg.entry_speed
+        else:
+            v_in = self.current_seg.path_seg.max_reached_speed
+
+        return v_in + acc * t_acc
