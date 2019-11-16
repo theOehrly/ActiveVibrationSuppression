@@ -152,6 +152,7 @@ class Machine:
             maximum_possible_speed = math.sqrt(self.ACCELERATION * path_seg.distance + (path_seg.entry_speed ** 2 + next_path_seg.entry_speed ** 2) / 2)
 
             limiting_speed = min(path_seg.nominal_speed, maximum_possible_speed)
+            path_seg.max_reached_speed = limiting_speed
 
             # calculated the acceleration and deceleration durations first
             acc_seg.duration = (limiting_speed - path_seg.entry_speed) / self.ACCELERATION
