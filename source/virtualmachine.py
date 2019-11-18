@@ -2,10 +2,13 @@ import math
 
 
 class Machine:
-    def __init__(self, gcode):
+    def __init__(self, gcode, create_layers=True):
         self.gcode = gcode
         self.path_segments = list()
         self.acceleration_segments = list()
+
+        self.create_layers = create_layers
+        self.layers = list()  # list of the indexes for self.gcode items where a new layer starts
 
         self.x = float(0)
         self.y = float(0)
@@ -30,7 +33,25 @@ class Machine:
         x = 0
         y = 0
 
+        # variables for dectection of layer change
+        z = 0
+        z_old = 0
+        z_changed = False
+
+        i = 0  # count gcode elements
+        i_layer_start = 0  # index of gcode element at the start of the current layer
+
         for gline in self.gcode:
+            # if the z height changed in one of the last commands this is interpreted as
+            # a layer change only if a non-travel move (G1, G2, G3) takes place at the new height
+            if z_changed:
+                if gline.has_word('G') and (gline.get_word('G') in (1, 2, 3)):
+                    self.layers.append(i_layer_start)
+                    i_layer_start = i + 1
+                    z_old = z
+                    z_changed = False
+
+            # check for changes of position or speed
             if gline.has_word('F'):
                 nominal_speed = gline.get_word('F') / 60  # convert from mm/min to mm/sec
             if gline.has_word('X'):
@@ -38,7 +59,17 @@ class Machine:
             if gline.has_word('Y'):
                 y = gline.get_word('Y')
 
+            # check for z-height change if layers should be created
+            if gline.has_word('Z') and self.create_layers:
+                z = gline.get_word('Z')
+                if z != z_old:
+                    z_changed = True
+                else:
+                    # z didn't change or got reset to the previous value before the next non-travel move (e.g Z Hop)
+                    z_changed = False
+
             self.path_segments.append(PathSegment(x, y, nominal_speed, gline, self))
+            i += 1
 
     def calculate_path_segments(self):
         for i in range(1, len(self.path_segments)):
@@ -193,11 +224,24 @@ class Machine:
         y_value = path_seg.y_unit_vec * value
         return x_value, y_value
 
-    def get_path_coordinates(self):
-        coords_x = [0, ]
-        coords_y = [0, ]
+    def get_path_coordinates(self, layer_number=None):
+        if layer_number is None:
+            # return all items
+            start = None  # slicing a list with [None:None] returns all elements
+            end = None
+        elif layer_number == len(self.layers) - 1:
+            # return from last layer start till end of list
+            start = self.layers[layer_number]
+            end = None
+        else:
+            # return requested layer in the middle of the list
+            start = self.layers[layer_number]
+            end = self.layers[layer_number+1]
 
-        for seg in self.path_segments:
+        coords_x = list()
+        coords_y = list()
+
+        for seg in self.path_segments[start:end]:
             coords_x.append(seg.x)
             coords_y.append(seg.y)
 
