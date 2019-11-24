@@ -120,7 +120,6 @@ class BackgroundTask(QThread):
         self.arguments = args
 
     def run(self):
-        print(*self.arguments)
         self.func(*self.arguments)
         self.finished.emit()
 
