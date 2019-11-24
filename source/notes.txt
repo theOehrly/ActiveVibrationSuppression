@@ -1,0 +1,3 @@
+- consider all commands (z move/others) within a layer which take time
+    This could be used to assume end of current vibrations if pause is long enough
+    Reset offset and inputs to zero thereby increasing simulation accuracy
