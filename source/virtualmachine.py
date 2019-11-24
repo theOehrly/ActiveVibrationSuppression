@@ -3,32 +3,28 @@ import math
 
 class Machine:
     def __init__(self, gcode, create_layers=True):
-        self.gcode = gcode
+        self.gcode = gcode  # gcode class
         self.path_segments = list()
         self.acceleration_segments = list()
 
-        self.create_layers = create_layers
+        self.CREATE_LAYERS = create_layers
         self.layers = list()  # list of the indexes for self.gcode items where a new layer starts
 
-        self.x = float(0)
-        self.y = float(0)
-
-        self.vx = float(0)
-        self.vy = float(0)
-
+        # constant machine settings
         self.SPEED = float(200)
         self.MIN_SPEED = float(10)
         self.ACCELERATION = float(2000)
         self.JUNCTION_DEVIATION = float(0.05)
 
     def create_path(self):
-        self.path_segments = list()
-
         self.create_path_segments()
         self.calculate_path_segments()
         self.calculate_acceleration_segments()
 
     def create_path_segments(self):
+        # reads each GLine from self.gcode and creates a path segment for every line that contains x/y movement
+
+        # machine state variables
         nominal_speed = 0
         x = 0
         y = 0
@@ -60,7 +56,7 @@ class Machine:
                 y = gline.get_word('Y')
 
             # check for z-height change if layers should be created
-            if gline.has_word('Z') and self.create_layers:
+            if gline.has_word('Z') and self.CREATE_LAYERS:
                 z = gline.get_word('Z')
                 if z != z_old:
                     z_changed = True
@@ -220,11 +216,15 @@ class Machine:
 
     @staticmethod
     def vectorize(path_seg, value):
+        # takes a value and creates a directional vector using the path segments unit vectors
+        # the absolute value of the vector will be equal to the given value parameter
         x_value = path_seg.x_unit_vec * value
         y_value = path_seg.y_unit_vec * value
         return x_value, y_value
 
     def get_path_coordinates(self, layer_number=None):
+        # returns two lists of x and y values respectively
+        # for the specified layer or the whole gcode if not specified
         if layer_number is None:
             # return all items
             start = None  # slicing a list with [None:None] returns all elements
@@ -289,6 +289,12 @@ class AccelerationSegment:
 
 
 class ValueFromTime:
+    # this class allows list-like access to the machine data using time as an index
+    # the index can be a floating point number
+    # ! Functionality is limited to accending values for the index/time !
+    #       e.g. after accesing data at index 10 it is only possible to acces data at an index >= 10
+    # ! This is just a base class and will return nothing. The _retrun_value function is overridden in child classes !
+
     def __init__(self, machine):
         self.seg_iter = iter(machine.acceleration_segments)
         self.current_seg = next(self.seg_iter)
@@ -321,21 +327,28 @@ class ValueFromTime:
 
 
 class AccelerationFromTime(ValueFromTime):
+    # returns acceleration at given time
     def _return_value(self, time):
         self.current_seg.get_accelerations()
 
 
 class SpeedFromTime(ValueFromTime):
+    # returns speed at given time
     def _return_value(self, time):
+        # plateau segment
         if not self.current_seg.acceleration:
             return self.current_seg.path_seg.max_reached_speed
 
-        t_acc = time - self.current_seg_start_time
-        acc = self.current_seg.acceleration
+        # acceleration or deceleration segment
+        t_acc = time - self.current_seg_start_time  # elapsed time since beginning of this acceleration segment
 
+        # depending on if this is a acceleration/deceleration segment the value at segment entry is either
+        #   - entry speed for acceleration segments
         if self.current_seg.acceleration > 0:
             v_in = self.current_seg.path_seg.entry_speed
+        #   - maximum reached speed for deceleration segments
         else:
             v_in = self.current_seg.path_seg.max_reached_speed
 
-        return v_in + acc * t_acc
+        # v = v0 + a*t ; acceleration is a negative value for a deceleration segment
+        return v_in + self.current_seg.acceleration * t_acc
