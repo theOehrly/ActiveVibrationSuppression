@@ -1,7 +1,7 @@
 import sys
 
-from PyQt5.Qt import QThread, QTimer, QApplication, pyqtSignal, QIcon, QFileDialog
-from PyQt5.QtWidgets import QHBoxLayout, QVBoxLayout, QWidget, QToolBar, QToolButton, QSlider, QLabel
+from PyQt5.Qt import QThread, QTimer, QApplication, pyqtSignal, QIcon, QFileDialog, QFont
+from PyQt5.QtWidgets import QSizePolicy, QHBoxLayout, QVBoxLayout, QWidget, QToolBar, QDialog, QSlider, QLabel
 from PyQt5.QtCore import Qt
 
 from pyqtgraph import PlotWidget
@@ -33,6 +33,15 @@ class MainWindow(QWidget):
         self.mainlayout.addWidget(self.toolBar)
 
         self.add_toolbar_action("./res/folder.svg", "Open", self.open_file_dialog)
+        self.add_toolbar_action("./res/x-square.svg", "Close", self.close_file)
+        self.add_toolbar_action("./res/save.svg", "Export", self.export)
+        self.toolBar.addSeparator()
+        self.add_toolbar_action("./res/sliders.svg", "Settings", self.open_settings_dialog)
+        self.add_toolbar_action("./res/play.svg", "Simulate", self.start_simulation)
+        divider = QWidget()
+        divider.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.toolBar.addWidget(divider)
+        self.add_toolbar_action("./res/info.svg", "About", self.open_about_dialog)
 
         self.contentLayout = QHBoxLayout()
         self.contentLayout.setContentsMargins(10, 10, 10, 10)
@@ -92,6 +101,45 @@ class MainWindow(QWidget):
 
         if filename:
             self.run_in_background(self.load_data, after=self.show_layer, args=filename)
+
+    def open_settings_dialog(self):
+        pass
+
+    def open_about_dialog(self):
+        dialog = QDialog()
+        dialog.setWindowTitle("About...")
+
+        layout = QVBoxLayout()
+        dialog.setLayout(layout)
+
+        content = QLabel('''ActivVibrationSuppression (AVS)
+-- Vibration simulation and supression for cartesian 3D printing -- 
+Copyright 2019, Philipp Schäfer
+
+Libraries/Others:
+Feather Icons (MIT License)''')
+
+        heading = QLabel('About...')
+        font = QFont()
+        font.setBold(True)
+        font.setPointSize(14)
+        heading.setFont(font)
+
+        # layout.addWidget(heading)
+        layout.addWidget(content)
+
+
+
+        dialog.exec()
+
+    def close_file(self):
+        pass
+
+    def export(self):
+        pass
+
+    def start_simulation(self):
+        pass
 
     def load_data(self, filename):
         self.gcode = GCode()
