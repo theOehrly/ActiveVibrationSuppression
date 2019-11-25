@@ -8,6 +8,7 @@ from pyqtgraph import PlotWidget
 
 from virtualmachine import Machine, AccelerationFromTime, SpeedFromTime
 from gcode import GCode
+import strings
 
 import time
 
@@ -118,23 +119,8 @@ class MainWindow(QWidget):
         layout = QVBoxLayout()
         dialog.setLayout(layout)
 
-        content = QLabel('''ActivVibrationSuppression (AVS)
--- Vibration simulation and supression for cartesian 3D printing -- 
-Copyright 2019, Philipp Schäfer
-
-Libraries/Others:
-Feather Icons (MIT License)''')
-
-        heading = QLabel('About...')
-        font = QFont()
-        font.setBold(True)
-        font.setPointSize(14)
-        heading.setFont(font)
-
-        # layout.addWidget(heading)
-        layout.addWidget(content)
-
-
+        text = QLabel(strings.about)
+        layout.addWidget(text)
 
         dialog.exec()
 
