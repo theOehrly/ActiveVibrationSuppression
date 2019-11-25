@@ -56,13 +56,17 @@ class MainWindow(QWidget):
         self.contentLayout.addWidget(self.layerSlider)
 
         self.coordPlot = PlotWidget()
+        self.coordPlot.setAspectLocked(True)
+        self.coordPlot.setXRange(0, 200)
+        self.coordPlot.setYRange(0, 200)
+        self.coordPlot.setLimits(xMin=0, yMin=0)
         self.contentLayout.addWidget(self.coordPlot)
 
         self.sidebarlayout = QVBoxLayout()
         self.contentLayout.addLayout(self.sidebarlayout)
 
         self.sidebarheader = QLabel("Options")
-        self.sidebarheader.setMinimumSize(300, 50)
+        self.sidebarheader.setFixedSize(300, 50)
         self.sidebarlayout.addWidget(self.sidebarheader)
 
     def add_toolbar_action(self, icon, text, function):
