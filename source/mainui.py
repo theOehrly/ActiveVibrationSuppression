@@ -64,22 +64,25 @@ class MainWindow(QWidget):
         self.sidebarheader.setMinimumSize(300, 50)
         self.sidebarlayout.addWidget(self.sidebarheader)
 
-        # self.finish_init()
-
     def add_toolbar_action(self, icon, text, function):
+        # wrapper function for adding a toolbar button and connecting it to trigger a function
         open_icon = QIcon(icon)
         action = self.toolBar.addAction(open_icon, text)
         action.triggered.connect(function)
 
-    def finish_init(self):
-        self.run_in_background(self.load_data, after=self.show_layer)
-
     def finish_background_task(self):
-        self.postBackgroundTask()
+        # function is called when a background task finishes
+        if self.postBackgroundTask:
+            # run cleanup task (i.e. ui update); runs on main ui thread!
+            self.postBackgroundTask()
+        # reset variables
         self.postBackgroundTask = None
         self.backgroundTask = None
 
     def run_in_background(self, task, after=None, args=None):
+        # wrapper function for creating and starting a thread to run a function in the background
+        # arguments can be passed to the function in the thread and a cleanup function can be specified
+        # which is run on the main ui thread when the background task is finished
         self.backgroundTask = BackgroundTask(task)
         if args:
             self.backgroundTask.set_arguments(args)
@@ -88,6 +91,7 @@ class MainWindow(QWidget):
         self.backgroundTask.start()
 
     def open_file_dialog(self):
+        # open dialog for selecting a gcode file to be loaded
         dialog = QFileDialog(self)
         dialog.setFileMode(QFileDialog.ExistingFile)
         filters = ["G-code (*.gcode)", "Any files (*)"]
@@ -103,9 +107,11 @@ class MainWindow(QWidget):
             self.run_in_background(self.load_data, after=self.show_layer, args=filename)
 
     def open_settings_dialog(self):
+        # open a dialog with settings
         pass
 
     def open_about_dialog(self):
+        # open the about dialog
         dialog = QDialog()
         dialog.setWindowTitle("About...")
 
@@ -142,21 +148,25 @@ Feather Icons (MIT License)''')
         pass
 
     def load_data(self, filename):
+        # initalizes a virtual machine from the gcode in the file given
+        # all path data for this gcode is calculated; this is a cpu intensive task!
         self.gcode = GCode()
         self.gcode.load_file(filename)
         self.machine = Machine(self.gcode)
         self.machine.create_path()
 
+        # set the layer sliders maximum to represent the given amount of layers and enable the slider
         self.layerSlider.setMaximum(len(self.machine.layers) - 1)
         self.layerSlider.setEnabled(True)
 
     def show_layer(self):
-        # plot path
+        # plot path for the layer selected by the layer slider
         x, y = self.machine.get_path_coordinates(layer_number=self.layerSlider.value())
         self.coordPlot.plot(x, y, clear=True)
 
 
 class BackgroundTask(QThread):
+    # thread class for easily running cpu intensive functions in a second thread
     finished = pyqtSignal()
 
     def __init__(self, func, *args, **kwargs):
@@ -165,6 +175,7 @@ class BackgroundTask(QThread):
         self.arguments = list()
 
     def set_arguments(self, args):
+        # set arguments that should be passed to the executed function
         self.arguments = args
 
     def run(self):
