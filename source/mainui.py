@@ -1,7 +1,7 @@
 import sys
 
 from PyQt5.Qt import QThread, QTimer, QApplication, pyqtSignal, QIcon, QFileDialog, QFont
-from PyQt5.QtWidgets import QSizePolicy, QHBoxLayout, QVBoxLayout, QWidget, QToolBar, QDialog, QSlider, QLabel
+from PyQt5.QtWidgets import QSizePolicy, QHBoxLayout, QVBoxLayout, QWidget, QToolBar, QDialog, QSlider, QLabel, QMessageBox
 from PyQt5.QtCore import Qt
 
 from pyqtgraph import PlotWidget
@@ -22,6 +22,8 @@ class MainWindow(QWidget):
 
         self.backgroundTask = None
         self.postBackgroundTask = None
+
+        self.coord_plot_items = list() # list of all plot items added to the coord plot
 
         self.mainlayout = QVBoxLayout(self)
         self.mainlayout.setContentsMargins(0, 0, 0, 0)
@@ -97,6 +99,13 @@ class MainWindow(QWidget):
         self.backgroundTask.start()
 
     def open_file_dialog(self):
+        # in case a file is open already, close it properly first
+        if self.machine:
+            ret = self.close_file()
+            if ret == False:
+                # user canceled closing of current file; can't open new one
+                return
+
         # open dialog for selecting a gcode file to be loaded
         dialog = QFileDialog(self)
         dialog.setFileMode(QFileDialog.ExistingFile)
@@ -130,7 +139,25 @@ class MainWindow(QWidget):
         dialog.exec()
 
     def close_file(self):
-        self.coordPlot.removeItem()
+        # close the current gcode file, discard all data
+        # Before, ask for user confirmation
+        msgbox = QMessageBox()
+        msgbox.setWindowTitle("Close file?")
+        msgbox.setText("Are you sure you want to close the current file and discard all unsaved data?")
+        msgbox.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        msgbox.setDefaultButton(QMessageBox.No)
+        ret = msgbox.exec()
+
+        if ret == QMessageBox.Yes:
+            for item in self.coord_plot_items:
+                self.coordPlot.removeItem(item)
+
+            self.machine = None
+            self.gcode = None
+            # TODO: fix: this will not terminate a running background process
+            return True
+
+        return False
 
     def export(self):
         pass
@@ -160,7 +187,8 @@ class MainWindow(QWidget):
     def show_layer(self):
         # plot path for the layer selected by the layer slider
         x, y = self.machine.get_path_coordinates(layer_number=self.layerSlider.value())
-        self.coordPlot.plot(x, y, clear=True)
+        pltitm = self.coordPlot.plot(x, y, clear=True)
+        self.coord_plot_items.append(pltitm)
 
 
 class BackgroundTask(QThread):
