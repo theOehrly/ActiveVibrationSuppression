@@ -23,8 +23,6 @@ class MainWindow(QWidget):
         self.backgroundTask = None
         self.postBackgroundTask = None
 
-        self.toolbar_actions = dict()
-
         self.mainlayout = QVBoxLayout(self)
         self.mainlayout.setContentsMargins(0, 0, 0, 0)
 
@@ -132,7 +130,7 @@ class MainWindow(QWidget):
         dialog.exec()
 
     def close_file(self):
-        pass
+        self.coordPlot.removeItem()
 
     def export(self):
         pass
