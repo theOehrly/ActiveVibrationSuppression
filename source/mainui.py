@@ -39,6 +39,9 @@ class MainWindow(QWidget):
         self.toolBar.addSeparator()
         self.add_toolbar_action("./res/sliders.svg", "Settings", self.open_settings_dialog)
         self.add_toolbar_action("./res/play.svg", "Simulate", self.start_simulation)
+        self.toolBar.addSeparator()
+        self.add_toolbar_action("./res/maximize.svg", "Fit", self.fit_plot_to_window)
+        self.add_toolbar_action("./res/maximize-2.svg", "Reset", self.reset_plot_view)
         divider = QWidget()
         divider.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.toolBar.addWidget(divider)
@@ -136,6 +139,13 @@ class MainWindow(QWidget):
 
     def start_simulation(self):
         pass
+
+    def fit_plot_to_window(self):
+        x, y = self.machine.get_path_coordinates(layer_number=self.layerSlider.value())
+        self.coordPlot.setRange(xRange=(min(x),max(x)), yRange=(min(y), max(y)))
+
+    def reset_plot_view(self):
+        self.coordPlot.setRange(xRange=(0,200), yRange=(0, 200))
 
     def load_data(self, filename):
         # initalizes a virtual machine from the gcode in the file given
