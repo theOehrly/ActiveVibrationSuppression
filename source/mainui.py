@@ -1,11 +1,12 @@
 import sys
 
-from PyQt5.Qt import QThread, QTimer, QApplication, pyqtSignal, QIcon, QFileDialog, QFont
+from PyQt5.Qt import QThread, QApplication, pyqtSignal, QIcon, QFileDialog
 from PyQt5.QtWidgets import QSizePolicy, QHBoxLayout, QVBoxLayout, QWidget, QToolBar, QDialog, QSlider, QLabel, QMessageBox
 from PyQt5.QtCore import Qt
 
 from pyqtgraph import PlotWidget
 
+from settings import SettingsDialog
 from virtualmachine import Machine, AccelerationFromTime, SpeedFromTime
 from gcode import GCode
 import strings
@@ -123,7 +124,8 @@ class MainWindow(QWidget):
 
     def open_settings_dialog(self):
         # open a dialog with settings
-        pass
+        dialog = SettingsDialog()
+        dialog.exec()
 
     def open_about_dialog(self):
         # open the about dialog
