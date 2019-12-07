@@ -11,8 +11,6 @@ class SettingsDialog(QDialog):
 
         self.settings = None
 
-        self.PC = JsonProfilesConnector("profiles.conf")
-
         self.setWindowTitle("Settings")
 
         layout = QVBoxLayout()
@@ -25,12 +23,8 @@ class SettingsDialog(QDialog):
         box1.setLayout(box1_layout)
 
         self.profile_selector = QComboBox()
-        for name in self.PC.list_profiles():
-            self.profile_selector.addItem(name)
-        box1_layout.addRow("", self.profile_selector)
-
         self.profile_selector.currentTextChanged.connect(self.selected_profile_changed)
-        self.PC.select_profile(self.profile_selector.currentText())
+        box1_layout.addRow("", self.profile_selector)
 
         changes_layout = QHBoxLayout()
         save = QPushButton(QIcon("./res/save.svg"), "Save")
@@ -143,9 +137,21 @@ class SettingsDialog(QDialog):
         self.acceleration.valueChanged.connect(lambda: self.field_value_changed(self.acceleration))
         self.junction_dev.valueChanged.connect(lambda: self.field_value_changed(self.junction_dev))
 
+        # ##### List of All Settings Fields in This Dialog ##### #
         self.settings_fields = (self.bed_min_x, self.bed_min_y, self.bed_max_x, self.bed_max_y,
                                 self.invert_x, self.invert_y, self.min_speed, self.acceleration,
                                 self.junction_dev)
+
+        # ##### Read Values from Configuration File ##### #
+        try:
+            self.PC = JsonProfilesConnector("profiles.conf")
+        except FileNotFoundError:
+            JsonProfilesConnector.create_empty_config("profiles.conf", self.settings_fields)
+            self.PC = JsonProfilesConnector("profiles.conf")
+
+        for name in self.PC.list_profiles():
+            self.profile_selector.addItem(name)
+        self.PC.select_profile(self.profile_selector.currentText())
 
         self.set_field_values()
 
@@ -228,7 +234,7 @@ class SettingsDialog(QDialog):
 
 
 class JsonProfilesConnector:
-    def __init__(self, filename):
+    def __init__(self, filename, create_new=False):
         self._filename = filename
         self._profile = None
         self._data = None
@@ -266,3 +272,16 @@ class JsonProfilesConnector:
     def save_to_file(self):
         with open(self._filename, "w") as json_conf:
             json.dump(self._data, json_conf)
+
+    @staticmethod
+    def create_empty_config(filename, fields):
+        conf = {"Default": {}}
+
+        for field in fields:
+            if type(field) in (QSpinBox, QDoubleSpinBox):
+                conf["Default"][field.property("key")] = int(1)
+            elif type(field) == QCheckBox:
+                conf["Default"][field.property("key")] = False
+
+        with open(filename, "w") as json_conf:
+            json.dump(conf, json_conf)
