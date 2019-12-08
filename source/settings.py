@@ -5,6 +5,18 @@ from PyQt5.Qt import QIcon
 import json
 
 
+default_profile = {"Default": {"bed_min_x": 0,
+                               "bed_min_y": 0,
+                               "bed_max_x": 200,
+                               "bed_max_y": 200,
+                               "invert_x": False,
+                               "invert_y": False,
+                               "min_speed": 10,
+                               "acceleration": 2500,
+                               "junction_dev": 0.05}
+                   }
+
+
 class SettingsDialog(QDialog):
     def __init__(self):
         super().__init__()
@@ -275,13 +287,5 @@ class JsonProfilesConnector:
 
     @staticmethod
     def create_empty_config(filename, fields):
-        conf = {"Default": {}}
-
-        for field in fields:
-            if type(field) in (QSpinBox, QDoubleSpinBox):
-                conf["Default"][field.property("key")] = int(1)
-            elif type(field) == QCheckBox:
-                conf["Default"][field.property("key")] = False
-
         with open(filename, "w") as json_conf:
-            json.dump(conf, json_conf)
+            json.dump(default_profile, json_conf)
