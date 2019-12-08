@@ -234,7 +234,7 @@ class SettingsDialog(QDialog):
 
 
 class JsonProfilesConnector:
-    def __init__(self, filename, create_new=False):
+    def __init__(self, filename):
         self._filename = filename
         self._profile = None
         self._data = None
