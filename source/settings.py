@@ -35,7 +35,7 @@ class SettingsDialog(QDialog):
         undo.setToolTip("Reset unsaved changes")
         divider = QFrame()
         divider.setFrameShape(QFrame.VLine)
-        delete = QPushButton(QIcon("./res/x-square.svg"), "")
+        delete = QPushButton(QIcon("./res/trash-2.svg"), "")
         delete.setToolTip("Delete current profile")
 
         changes_layout.addWidget(save)
