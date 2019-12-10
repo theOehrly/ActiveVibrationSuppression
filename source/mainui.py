@@ -6,7 +6,7 @@ from PyQt5.QtCore import Qt
 
 from pyqtgraph import PlotWidget
 
-from settings import SettingsDialog
+from settings import JsonProfilesConnector, SettingsDialog
 from virtualmachine import Machine, AccelerationFromTime, SpeedFromTime
 from gcode import GCode
 import strings
@@ -15,9 +15,10 @@ import time
 
 
 class MainWindow(QWidget):
-    def __init__(self, appinst, *args, **kwargs):
+    def __init__(self, appinst, profilecon, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.app = appinst
+        self.profilecon = profilecon  # connector class instance for reading/writing profile settings
         self.gcode = None
         self.machine = None
 
@@ -124,7 +125,7 @@ class MainWindow(QWidget):
 
     def open_settings_dialog(self):
         # open a dialog with settings
-        dialog = SettingsDialog()
+        dialog = SettingsDialog(self.profilecon)
         dialog.exec()
 
     def open_about_dialog(self):
@@ -211,9 +212,28 @@ class BackgroundTask(QThread):
         self.finished.emit()
 
 
+def read_configuration():
+    try:
+        pc = JsonProfilesConnector("profiles.conf")
+
+    except FileNotFoundError:
+        # no config found, try creating an empty one
+        try:
+            JsonProfilesConnector.create_empty_config("profiles.conf")
+            pc = JsonProfilesConnector("profiles.conf")
+
+        except PermissionError:
+            # seems like the software has no write access to the config directory
+            return None
+
+    return pc
+
+
 if __name__ == '__main__':
     app = QApplication(sys.argv)
-    window = MainWindow(app)
+    profileconnector = read_configuration()
+
+    window = MainWindow(app, profileconnector)
     window.setWindowTitle('AVS')
     window.show()
     app.exec()

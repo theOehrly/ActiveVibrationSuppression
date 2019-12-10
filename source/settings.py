@@ -5,23 +5,23 @@ from PyQt5.Qt import QIcon
 import json
 
 
-default_profile = {"Default": {"bed_min_x": 0,
-                               "bed_min_y": 0,
-                               "bed_max_x": 200,
-                               "bed_max_y": 200,
-                               "invert_x": False,
-                               "invert_y": False,
-                               "min_speed": 10,
-                               "acceleration": 2500,
-                               "junction_dev": 0.05}
-                   }
+DefaultProfile = {"Default": {"bed_min_x": 0,
+                              "bed_min_y": 0,
+                              "bed_max_x": 200,
+                              "bed_max_y": 200,
+                              "invert_x": False,
+                              "invert_y": False,
+                              "min_speed": 10,
+                              "acceleration": 2500,
+                              "junction_dev": 0.05}
+                  }
 
 
 class SettingsDialog(QDialog):
-    def __init__(self):
+    def __init__(self, profilecon):
         super().__init__()
 
-        self.settings = None
+        self.profilecon = profilecon
 
         self.setWindowTitle("Settings")
 
@@ -35,6 +35,10 @@ class SettingsDialog(QDialog):
         box1.setLayout(box1_layout)
 
         self.profile_selector = QComboBox()
+        for name in self.profilecon.list_profiles():
+            self.profile_selector.addItem(name)
+        self.profilecon.select_profile(self.profile_selector.currentText())  # set default ComboBox text as the currently selected profile
+        # TODO: rather SET the currently selected profile in the QComboBox... research how
         self.profile_selector.currentTextChanged.connect(self.selected_profile_changed)
         box1_layout.addRow("", self.profile_selector)
 
@@ -154,25 +158,14 @@ class SettingsDialog(QDialog):
                                 self.invert_x, self.invert_y, self.min_speed, self.acceleration,
                                 self.junction_dev)
 
-        # ##### Read Values from Configuration File ##### #
-        try:
-            self.PC = JsonProfilesConnector("profiles.conf")
-        except FileNotFoundError:
-            JsonProfilesConnector.create_empty_config("profiles.conf", self.settings_fields)
-            self.PC = JsonProfilesConnector("profiles.conf")
-
-        for name in self.PC.list_profiles():
-            self.profile_selector.addItem(name)
-        self.PC.select_profile(self.profile_selector.currentText())
-
         self.set_field_values()
 
     def set_field_values(self):
         for field in self.settings_fields:
             if type(field) in (QSpinBox, QDoubleSpinBox):
-                field.setValue(self.PC.get_value(field.property("key")))
+                field.setValue(self.profilecon.get_value(field.property("key")))
             elif type(field) == QCheckBox:
-                field.setChecked(self.PC.get_value(field.property("key")))
+                field.setChecked(self.profilecon.get_value(field.property("key")))
 
     def showEvent(self, event):
         self.finish_column_sizing()  # column width of QGridLayout is only known after parent widget is shown
@@ -191,43 +184,43 @@ class SettingsDialog(QDialog):
     def field_value_changed(self, field):
         # compare field value to settings value
         if type(field) in (QSpinBox, QDoubleSpinBox):
-            if not field.value() == self.PC.get_value(field.property("key")):
+            if not field.value() == self.profilecon.get_value(field.property("key")):
                 field.setStyleSheet("""QWidget {background-color: yellow;}""")
             else:
                 field.setStyleSheet("""QWidget {background-color: None;}""")
 
         elif type(field) == QCheckBox:
-            if not field.isChecked() == self.PC.get_value(field.property("key")):
+            if not field.isChecked() == self.profilecon.get_value(field.property("key")):
                 field.setStyleSheet("""QWidget {background-color: yellow;}""")
             else:
                 field.setStyleSheet("""QWidget {background-color: None;}""")
 
     def selected_profile_changed(self, new_profile):
-        self.PC.select_profile(new_profile)
+        self.profilecon.select_profile(new_profile)
         self.set_field_values()
 
     def save_settings(self):
         for field in self.settings_fields:
             if type(field) in (QSpinBox, QDoubleSpinBox):
-                self.PC.set_value(field.property("key"), field.value())
+                self.profilecon.set_value(field.property("key"), field.value())
             elif type(field) == QCheckBox:
-                self.PC.set_value(field.property("key"), field.isChecked())
+                self.profilecon.set_value(field.property("key"), field.isChecked())
 
             self.field_value_changed(field)
 
-        self.PC.save_to_file()
+        self.profilecon.save_to_file()
 
     def save_new_profile(self):
         name, ok = QInputDialog().getText(self, "Input", "Enter a name for the new profile:")
         if ok:  # only proceed if user didn't cancel
-            self.PC.add_profile(name)
-            self.PC.save_to_file()
+            self.profilecon.add_profile(name)
+            self.profilecon.save_to_file()
 
-            self.PC.select_profile(name)
+            self.profilecon.select_profile(name)
             self.save_settings()
 
             self.profile_selector.addItem(name)
-            self.profile_selector.setCurrentIndex(self.profile_selector.count()-1)  # select last (i.e. newest) item
+            self.profile_selector.setCurrentIndex(self.profile_selector.count() - 1)  # select last (i.e. newest) item
 
     def delete_profile(self):
         msgbox = QMessageBox()
@@ -238,11 +231,11 @@ class SettingsDialog(QDialog):
         ret = msgbox.exec()
 
         if ret:
-            self.PC.delete_current_profile()
-            self.PC.save_to_file()
+            self.profilecon.delete_current_profile()
+            self.profilecon.save_to_file()
 
             self.profile_selector.removeItem(self.profile_selector.currentIndex())
-            self.PC.select_profile(self.profile_selector.currentText())
+            self.profilecon.select_profile(self.profile_selector.currentText())
 
 
 class JsonProfilesConnector:
@@ -269,6 +262,7 @@ class JsonProfilesConnector:
         self._data[name] = dict()
 
     def delete_current_profile(self):
+        # TODO prevent deletion if only one profile, or automatically recreate a default one
         del self._data[self._profile]
 
     def get_value(self, key):
@@ -286,6 +280,6 @@ class JsonProfilesConnector:
             json.dump(self._data, json_conf)
 
     @staticmethod
-    def create_empty_config(filename, fields):
+    def create_empty_config(filename):
         with open(filename, "w") as json_conf:
-            json.dump(default_profile, json_conf)
+            json.dump(DefaultProfile, json_conf)
