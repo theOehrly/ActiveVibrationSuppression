@@ -11,6 +11,7 @@ from virtualmachine import Machine, AccelerationFromTime, SpeedFromTime
 from gcode import GCode
 import strings
 
+import os
 import time
 
 
@@ -213,15 +214,31 @@ class BackgroundTask(QThread):
 
 
 def read_configuration():
-    try:
-        pc = JsonProfilesConnector("profiles.conf")
+    # config file path is platform dependent
+    # for now only windows gets properly treated
+    if os.sys.platform == "win32":
+        # create a application folder in appdata/roaming and save configuration files there
+        conf_path = os.path.join(os.environ['APPDATA'], 'ActiveVibrationSuppression')
+        if not os.path.isdir(conf_path):
+            try:
+                os.makedirs(conf_path)
+            except PermissionError:
+                # could not create application folder in appdata
+                return None
 
+    else:
+        # all other systems save their config into the application folder for now
+        conf_path = "./"
+
+    profiles_path = os.path.join(conf_path, "profiles.conf")
+
+    try:
+        pc = JsonProfilesConnector(profiles_path)
     except FileNotFoundError:
         # no config found, try creating an empty one
         try:
-            JsonProfilesConnector.create_empty_config("profiles.conf")
-            pc = JsonProfilesConnector("profiles.conf")
-
+            JsonProfilesConnector.create_empty_config(profiles_path)
+            pc = JsonProfilesConnector(profiles_path)
         except PermissionError:
             # seems like the software has no write access to the config directory
             return None
@@ -233,7 +250,18 @@ if __name__ == '__main__':
     app = QApplication(sys.argv)
     profileconnector = read_configuration()
 
-    window = MainWindow(app, profileconnector)
-    window.setWindowTitle('AVS')
-    window.show()
+    if not profileconnector:
+        # cannot read/create configuration and cannot start without
+        msgbox = QMessageBox()
+        msgbox.setWindowTitle("Application Error")
+        msgbox.setText("Failed to read and/or create configuration file. Cannot start application!")
+        msgbox.setStandardButtons(QMessageBox.Ok)
+        msgbox.exec()
+        sys.exit(-1)
+
+    else:
+        window = MainWindow(app, profileconnector)
+        window.setWindowTitle('AVS')
+        window.show()
+
     app.exec()
