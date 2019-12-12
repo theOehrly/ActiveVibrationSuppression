@@ -2,17 +2,15 @@ import sys
 
 from PyQt5.Qt import QThread, QApplication, pyqtSignal, QIcon, QFileDialog
 from PyQt5.QtWidgets import QSizePolicy, QHBoxLayout, QVBoxLayout, QWidget, QToolBar, QDialog, QSlider, QLabel, QMessageBox
-from PyQt5.QtCore import Qt
 
 from pyqtgraph import PlotWidget
 
 from settings import JsonProfilesConnector, SettingsDialog
-from virtualmachine import Machine, AccelerationFromTime, SpeedFromTime
+from virtualmachine import Machine
 from gcode import GCode
 import strings
 
 import os
-import time
 
 
 class MainWindow(QWidget):
@@ -43,8 +41,8 @@ class MainWindow(QWidget):
         self.add_toolbar_action("./res/sliders.svg", "Settings", self.open_settings_dialog)
         self.add_toolbar_action("./res/play.svg", "Simulate", self.start_simulation)
         self.toolBar.addSeparator()
-        self.add_toolbar_action("./res/maximize.svg", "Fit", self.fit_plot_to_window)
-        self.add_toolbar_action("./res/maximize-2.svg", "Reset", self.reset_plot_view)
+        self.add_toolbar_action("./res/maximize.svg", "Fit to View", self.fit_plot_to_window)
+        self.add_toolbar_action("./res/maximize-2.svg", "Reset View", self.reset_plot_view)
         divider = QWidget()
         divider.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.toolBar.addWidget(divider)
@@ -110,7 +108,7 @@ class MainWindow(QWidget):
         # in case a file is open already, close it properly first
         if self.machine:
             ret = self.close_file()
-            if ret == False:
+            if not ret:
                 # user canceled closing of current file; can't open new one
                 return
 
@@ -153,12 +151,12 @@ class MainWindow(QWidget):
     def close_file(self):
         # close the current gcode file, discard all data
         # Before, ask for user confirmation
-        msgbox = QMessageBox()
-        msgbox.setWindowTitle("Close file?")
-        msgbox.setText("Are you sure you want to close the current file and discard all unsaved data?")
-        msgbox.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
-        msgbox.setDefaultButton(QMessageBox.No)
-        ret = msgbox.exec()
+        cfmsgbox = QMessageBox()
+        cfmsgbox.setWindowTitle("Close file?")
+        cfmsgbox.setText("Are you sure you want to close the current file and discard all unsaved data?")
+        cfmsgbox.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        cfmsgbox.setDefaultButton(QMessageBox.No)
+        ret = cfmsgbox.exec()
 
         if ret == QMessageBox.Yes:
             for item in self.coord_plot_items:
@@ -179,7 +177,7 @@ class MainWindow(QWidget):
 
     def fit_plot_to_window(self):
         x, y = self.machine.get_path_coordinates(layer_number=self.layerSlider.value())
-        self.coordPlot.setRange(xRange=(min(x),max(x)), yRange=(min(y), max(y)))
+        self.coordPlot.setRange(xRange=(min(x), max(x)), yRange=(min(y), max(y)))
 
     def reset_plot_view(self):
         self.coordPlot.setXRange(self.profilecon.get_value("bed_min_x"), self.profilecon.get_value("bed_max_x"))
