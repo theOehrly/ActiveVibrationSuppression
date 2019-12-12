@@ -1,6 +1,7 @@
 from PyQt5.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QGroupBox, QFormLayout, QComboBox, QPushButton, QDoubleSpinBox, QSpinBox, QCheckBox, \
     QGridLayout, QLabel, QInputDialog, QFrame, QMessageBox
 from PyQt5.Qt import QIcon
+from PyQt5.QtCore import Qt
 
 import json
 
@@ -18,10 +19,11 @@ DefaultProfile = {"Default": {"bed_min_x": 0,
 
 
 class SettingsDialog(QDialog):
-    def __init__(self, profilecon):
+    def __init__(self, main, profilecon):
         super().__init__()
 
         self.profilecon = profilecon
+        self.main = main
 
         self.setWindowTitle("Settings")
 
@@ -37,7 +39,7 @@ class SettingsDialog(QDialog):
         self.profile_selector = QComboBox()
         for name in self.profilecon.list_profiles():
             self.profile_selector.addItem(name)
-        self.profilecon.select_profile(self.profile_selector.currentText())  # set default ComboBox text as the currently selected profile
+        self.profile_selector.setCurrentIndex(self.main.profileSelector.currentIndex())
         # TODO: rather SET the currently selected profile in the QComboBox... research how
         self.profile_selector.currentTextChanged.connect(self.selected_profile_changed)
         box1_layout.addRow("", self.profile_selector)
@@ -199,6 +201,8 @@ class SettingsDialog(QDialog):
         self.profilecon.select_profile(new_profile)
         self.set_field_values()
 
+        self.main.profileSelector.setCurrentIndex(self.profile_selector.currentIndex())  # update combobox in toolbar of mainwindow
+
     def save_settings(self):
         for field in self.settings_fields:
             if type(field) in (QSpinBox, QDoubleSpinBox):
@@ -220,6 +224,7 @@ class SettingsDialog(QDialog):
             self.save_settings()
 
             self.profile_selector.addItem(name)
+            self.main.profileSelector.addItem(name)
             self.profile_selector.setCurrentIndex(self.profile_selector.count() - 1)  # select last (i.e. newest) item
 
     def delete_profile(self):
@@ -234,7 +239,10 @@ class SettingsDialog(QDialog):
             self.profilecon.delete_current_profile()
             self.profilecon.save_to_file()
 
+            self.main.profileSelector.removeItem(self.main.profileSelector.currentIndex())  # update combobox in toolbar of mainwindow
+            # needs to be done first, because modifying the combo box from the settings dialog updates the index of the combo box in the toolbar
             self.profile_selector.removeItem(self.profile_selector.currentIndex())
+
             self.profilecon.select_profile(self.profile_selector.currentText())
 
 

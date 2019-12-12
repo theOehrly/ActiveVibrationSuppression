@@ -1,6 +1,6 @@
 import sys
 
-from PyQt5.Qt import QThread, QApplication, pyqtSignal, QIcon, QFileDialog
+from PyQt5.Qt import QThread, QApplication, pyqtSignal, QIcon, QFileDialog, QComboBox
 from PyQt5.QtWidgets import QSizePolicy, QHBoxLayout, QVBoxLayout, QWidget, QToolBar, QDialog, QSlider, QLabel, QMessageBox
 
 from pyqtgraph import PlotWidget
@@ -43,6 +43,13 @@ class MainWindow(QWidget):
         self.toolBar.addSeparator()
         self.add_toolbar_action("./res/maximize.svg", "Fit to View", self.fit_plot_to_window)
         self.add_toolbar_action("./res/maximize-2.svg", "Reset View", self.reset_plot_view)
+        self.toolBar.addSeparator()
+        self.profileSelector = QComboBox()
+        for name in self.profilecon.list_profiles():
+            self.profileSelector.addItem(name)
+        self.profilecon.select_profile(self.profileSelector.currentText())
+        self.toolBar.addWidget(self.profileSelector)
+        self.profileSelector.currentTextChanged.connect(self.selected_profile_changed)
         divider = QWidget()
         divider.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.toolBar.addWidget(divider)
@@ -77,6 +84,11 @@ class MainWindow(QWidget):
         self.coordPlot.invertY(self.profilecon.get_value("invert_y"))  # inverting does not update the viewbox, but setting the range does
         self.coordPlot.setXRange(self.profilecon.get_value("bed_min_x"), self.profilecon.get_value("bed_max_x"))
         self.coordPlot.setYRange(self.profilecon.get_value("bed_min_y"), self.profilecon.get_value("bed_max_y"))
+
+    def selected_profile_changed(self, new_profile):
+        # select the new profile in the settings connector and update the ui accordingly
+        self.profilecon.select_profile(new_profile)
+        self.configure_plot()
 
     def add_toolbar_action(self, icon, text, function):
         # wrapper function for adding a toolbar button and connecting it to trigger a function
@@ -129,7 +141,7 @@ class MainWindow(QWidget):
 
     def open_settings_dialog(self):
         # open a dialog with settings
-        dialog = SettingsDialog(self.profilecon)
+        dialog = SettingsDialog(self, self.profilecon)
         dialog.exec()
 
         # update settings
