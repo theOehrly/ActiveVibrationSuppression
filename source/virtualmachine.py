@@ -2,21 +2,28 @@ import math
 
 
 class Machine:
-    def __init__(self, gcode, create_layers=True):
+    def __init__(self, gcode, profilecon, create_layers=True):
         self.gcode = gcode  # gcode class
+        self.profilecon = profilecon
         self.path_segments = list()
         self.acceleration_segments = list()
 
         self.CREATE_LAYERS = create_layers
         self.layers = list()  # list of the indexes for self.gcode items where a new layer starts
 
-        # constant machine settings
-        self.SPEED = float(200)
-        self.MIN_SPEED = float(10)
-        self.ACCELERATION = float(2000)
-        self.JUNCTION_DEVIATION = float(0.05)
+        # constant machine settings, define vars, actual values are read when needed to make sure the are up to date
+        self.MIN_SPEED = 0
+        self.ACCELERATION = 0
+        self.JUNCTION_DEVIATION = 0
+
+    def update_settings(self):
+        self.MIN_SPEED = self.profilecon.get_value("min_speed")
+        self.ACCELERATION = self.profilecon.get_value("acceleration")
+        self.JUNCTION_DEVIATION = self.profilecon.get_value("junction_dev")
 
     def create_path(self):
+        self.update_settings()  # read the settings right before calculations start to get the newest values
+
         self.create_path_segments()
         self.calculate_path_segments()
         self.calculate_acceleration_segments()

@@ -246,6 +246,8 @@ class JsonProfilesConnector:
 
         self.read_file(self._filename)
 
+        self.select_profile(list(self._data.keys())[0])  # select a profile by default TODO Remember last selected profile
+
     def list_profiles(self):
         return self._data.keys()
 

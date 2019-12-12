@@ -63,9 +63,8 @@ class MainWindow(QWidget):
 
         self.coordPlot = PlotWidget()
         self.coordPlot.setAspectLocked(True)
-        self.coordPlot.setXRange(0, 200)
-        self.coordPlot.setYRange(0, 200)
-        self.coordPlot.setLimits(xMin=0, yMin=0)
+        # self.coordPlot.setLimits(xMin=0, yMin=0)
+        self.configure_plot()  # is done in a seperate funciton because values need to be updated after settings are changed
         self.contentLayout.addWidget(self.coordPlot)
 
         self.sidebarlayout = QVBoxLayout()
@@ -74,6 +73,12 @@ class MainWindow(QWidget):
         self.sidebarheader = QLabel("Options")
         self.sidebarheader.setFixedSize(300, 50)
         self.sidebarlayout.addWidget(self.sidebarheader)
+
+    def configure_plot(self):
+        self.coordPlot.invertX(self.profilecon.get_value("invert_x"))  # needs to be done before setting the axis ranges because
+        self.coordPlot.invertY(self.profilecon.get_value("invert_y"))  # inverting does not update the viewbox, but setting the range does
+        self.coordPlot.setXRange(self.profilecon.get_value("bed_min_x"), self.profilecon.get_value("bed_max_x"))
+        self.coordPlot.setYRange(self.profilecon.get_value("bed_min_y"), self.profilecon.get_value("bed_max_y"))
 
     def add_toolbar_action(self, icon, text, function):
         # wrapper function for adding a toolbar button and connecting it to trigger a function
@@ -129,6 +134,9 @@ class MainWindow(QWidget):
         dialog = SettingsDialog(self.profilecon)
         dialog.exec()
 
+        # update settings
+        self.configure_plot()
+
     def open_about_dialog(self):
         # open the about dialog
         dialog = QDialog()
@@ -174,14 +182,15 @@ class MainWindow(QWidget):
         self.coordPlot.setRange(xRange=(min(x),max(x)), yRange=(min(y), max(y)))
 
     def reset_plot_view(self):
-        self.coordPlot.setRange(xRange=(0,200), yRange=(0, 200))
+        self.coordPlot.setXRange(self.profilecon.get_value("bed_min_x"), self.profilecon.get_value("bed_max_x"))
+        self.coordPlot.setYRange(self.profilecon.get_value("bed_min_y"), self.profilecon.get_value("bed_max_y"))
 
     def load_data(self, filename):
         # initalizes a virtual machine from the gcode in the file given
         # all path data for this gcode is calculated; this is a cpu intensive task!
         self.gcode = GCode()
         self.gcode.load_file(filename)
-        self.machine = Machine(self.gcode)
+        self.machine = Machine(self.gcode, self.profilecon)
         self.machine.create_path()
 
         # set the layer sliders maximum to represent the given amount of layers and enable the slider
