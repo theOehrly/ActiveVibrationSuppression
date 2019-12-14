@@ -45,7 +45,7 @@ class JsonSettingsConnector:
 
     def save_to_file(self):
         with open(self._filename, "w") as json_conf:
-            json.dump(self._data, json_conf)
+            json.dump(self._data, json_conf, indent=4)
 
     def check_configuration(self):
         # this function makes sure that all keys present in the default configuration are also present in the current configuration file
@@ -74,7 +74,7 @@ class JsonSettingsConnector:
     @staticmethod
     def create_empty_config(filename):
         with open(filename, "w") as json_conf:
-            json.dump(DefaultSettingsConf, json_conf)
+            json.dump(DefaultSettingsConf, json_conf, indent=4)
 
 
 class JsonProfilesConnector:
@@ -118,12 +118,12 @@ class JsonProfilesConnector:
 
     def save_to_file(self):
         with open(self._filename, "w") as json_conf:
-            json.dump(self._data, json_conf)
+            json.dump(self._data, json_conf, indent=4)
 
     @staticmethod
     def create_empty_config(filename):
         with open(filename, "w") as json_conf:
-            json.dump(DefaultProfileConf, json_conf)
+            json.dump(DefaultProfileConf, json_conf, indent=4)
 
 
 def readConfiguration():
