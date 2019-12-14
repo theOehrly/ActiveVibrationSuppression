@@ -1,21 +1,27 @@
 import os
 import json
 
-DefaultSettings = {"App_Version": "0.0.1",
-                   "Window_Position": [300, 500],
-                   "Window_Size": [1000, 700],
-                   "Current_Profile": None}
+from collections import OrderedDict
 
-DefaultProfile = {"Default": {"bed_min_x": 0,
-                              "bed_min_y": 0,
-                              "bed_max_x": 200,
-                              "bed_max_y": 200,
-                              "invert_x": False,
-                              "invert_y": False,
-                              "min_speed": 10,
-                              "acceleration": 2500,
-                              "junction_dev": 0.05}
-                  }
+# Default Values for App Settings
+DefaultSettingsConf = OrderedDict([("App_Version", "0.0.1"),
+                                   ("Window_Position", [300, 500]),
+                                   ("Window_Size", [1000, 700]),
+                                   ("Current_Profile", None)])
+
+
+# Default Values for Printer Profiles
+default_profile = OrderedDict([("bed_min_x", 0),
+                              ("bed_min_y", 0),
+                              ("bed_max_x", 200),
+                              ("bed_max_y", 200),
+                              ("invert_x", False),
+                              ("invert_y", False),
+                              ("min_speed", 10),
+                              ("acceleration", 2500),
+                              ("junction_dev", 0.05)])
+
+DefaultProfileConf = OrderedDict()["Default"] = default_profile
 
 
 class JsonSettingsConnector:
@@ -33,7 +39,7 @@ class JsonSettingsConnector:
 
     def read_file(self, filename):
         with open(filename, "r") as json_conf:  # read settings file
-            self._data = json.load(json_conf)
+            self._data = json.load(json_conf, object_pairs_hook=OrderedDict)
 
         self.check_configuration()
 
@@ -47,7 +53,7 @@ class JsonSettingsConnector:
         # old keys: if a key is not in the defaults but in the current config, it will be removed
         # this enables easily adding features afterwards which require new settings
 
-        default_keys = list(DefaultSettings)
+        default_keys = list(DefaultSettingsConf)
 
         # old keys
         for key in list(self._data):
@@ -55,20 +61,20 @@ class JsonSettingsConnector:
                 del self._data[key]
 
         # new keys
-        for i in range(len(DefaultSettings)):
+        for i in range(len(DefaultSettingsConf)):
             key = default_keys[i]
             if key not in self._data:
                 # It is intentionally only checked if the key exists and NOT if it exists at the same position even though it should.
                 # If the order of the configuration file gets messed up, the worst thing that can happen this way, is even worse order.
                 # If it is checked for that specific index, keys might be created as duplicates.
-                self._data = insert_into_dict(self._data, key, DefaultSettings[key], i)
+                self._data = insert_into_dict(self._data, key, DefaultSettingsConf[key], i)
 
         self.save_to_file()
 
     @staticmethod
     def create_empty_config(filename):
         with open(filename, "w") as json_conf:
-            json.dump(DefaultSettings, json_conf)
+            json.dump(DefaultSettingsConf, json_conf)
 
 
 class JsonProfilesConnector:
@@ -108,7 +114,7 @@ class JsonProfilesConnector:
 
     def read_file(self, filename):
         with open(filename, "r") as json_conf:  # read settings file
-            self._data = json.load(json_conf)
+            self._data = json.load(json_conf, object_pairs_hook=OrderedDict)
 
     def save_to_file(self):
         with open(self._filename, "w") as json_conf:
@@ -117,7 +123,7 @@ class JsonProfilesConnector:
     @staticmethod
     def create_empty_config(filename):
         with open(filename, "w") as json_conf:
-            json.dump(DefaultProfile, json_conf)
+            json.dump(DefaultProfileConf, json_conf)
 
 
 def readConfiguration():
