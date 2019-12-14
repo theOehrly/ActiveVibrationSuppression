@@ -267,6 +267,8 @@ def read_configuration():
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
+    app.setApplicationName("Active Vibration Suppression")
+    app.setApplicationVersion("0.0.1")
     profileconnector = read_configuration()
 
     if not profileconnector:
@@ -280,7 +282,6 @@ if __name__ == '__main__':
 
     else:
         window = MainWindow(app, profileconnector)
-        window.setWindowTitle('AVS')
         window.show()
 
     app.exec()
