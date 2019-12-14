@@ -35,9 +35,35 @@ class JsonSettingsConnector:
         with open(filename, "r") as json_conf:  # read settings file
             self._data = json.load(json_conf)
 
+        self.check_configuration()
+
     def save_to_file(self):
         with open(self._filename, "w") as json_conf:
             json.dump(self._data, json_conf)
+
+    def check_configuration(self):
+        # this function makes sure that all keys present in the default configuration are also present in the current configuration file
+        # new keys: if a key is missing, it will be added with the default value
+        # old keys: if a key is not in the defaults but in the current config, it will be removed
+        # this enables easily adding features afterwards which require new settings
+
+        default_keys = list(DefaultSettings)
+
+        # old keys
+        for key in list(self._data):
+            if key not in default_keys:
+                del self._data[key]
+
+        # new keys
+        for i in range(len(DefaultSettings)):
+            key = default_keys[i]
+            if key not in self._data:
+                # It is intentionally only checked if the key exists and NOT if it exists at the same position even though it should.
+                # If the order of the configuration file gets messed up, the worst thing that can happen this way, is even worse order.
+                # If it is checked for that specific index, keys might be created as duplicates.
+                self._data = insert_into_dict(self._data, key, DefaultSettings[key], i)
+
+        self.save_to_file()
 
     @staticmethod
     def create_empty_config(filename):
@@ -130,3 +156,25 @@ def readConfiguration():
         ret.append(inst)
 
     return ret
+
+
+def insert_into_dict(_dict, new_key, new_value, index):
+    # This is not that nice of a solution because dictionaries are not really ordered. Still json.dump considers the "order" when dumping to a file.
+    # When adding extra settings options it is nice if the can be inserted at specific positions in the current settings file to maintain
+    # human readability. Therefore this function is needed.
+
+    keys = list(_dict)
+    temp = dict()
+
+    # insert in the middle
+    if index < len(_dict):
+        for i in range(len(_dict)):
+            if i == index:
+                temp[new_key] = new_value
+            temp[keys[i]] = _dict[keys[i]]
+
+    # append to the end
+    else:
+        temp = {**_dict, new_key: new_value}
+
+    return temp
