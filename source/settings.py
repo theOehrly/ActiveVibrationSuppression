@@ -235,7 +235,7 @@ class SettingsDialog(QDialog):
         msgbox.setDefaultButton(QMessageBox.No)
         ret = msgbox.exec()
 
-        if ret:
+        if ret == QMessageBox.Yes:
             self.profilecon.delete_current_profile()
             self.profilecon.save_to_file()
 
