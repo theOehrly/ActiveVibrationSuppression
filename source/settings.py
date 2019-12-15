@@ -114,6 +114,7 @@ class JsonProfilesConnector(JsonSettingsConnector):
 
     def delete_current_profile(self):
         # TODO prevent deletion if only one profile, or automatically recreate a default one
+        self._data = None
         del self._all_profiles[self._profile]
 
     def check_configuration(self):
