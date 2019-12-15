@@ -185,7 +185,6 @@ def readConfiguration():
 
 
 def insert_into_dict(_dict, new_key, new_value, index):
-    # This is not that nice of a solution because dictionaries are not really ordered. Still json.dump considers the "order" when dumping to a file.
     # When adding extra settings options it is nice if the can be inserted at specific positions in the current settings file to maintain
     # human readability. Therefore this function is needed.
 
