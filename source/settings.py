@@ -5,8 +5,7 @@ from collections import OrderedDict
 
 # Default Values for App Settings
 DefaultSettingsConf = OrderedDict([("App_Version", "0.0.1"),
-                                   ("Window_Position", [300, 500]),
-                                   ("Window_Size", [1000, 700]),
+                                   ("Window_Maximized", False),
                                    ("Current_Profile", None)])
 
 

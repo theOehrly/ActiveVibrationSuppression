@@ -254,6 +254,12 @@ if __name__ == '__main__':
 
     else:
         window = MainWindow(app, profileconnector, settingsconnector)
-        window.show()
+        if settingsconnector.get_value("Window_Maximized"):
+            window.showMaximized()
+        else:
+            window.show()
 
     app.exec()
+
+    settingsconnector.set_value("Window_Maximized", window.isMaximized())
+    settingsconnector.save_to_file()
