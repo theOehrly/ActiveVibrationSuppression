@@ -97,8 +97,6 @@ class JsonProfilesConnector(JsonSettingsConnector):
             self.create_empty_config(self._filename, self.Default)
             self._all_profiles = self.read_file(self._filename)  # data of all profiles
 
-        self.select_profile(list(self._all_profiles.keys())[0])  # select a profile by default TODO Remember last selected profile
-
         self.check_configuration()  # check for new or deprecated settings keys an update the config accordingly
         self.save_to_file()  # save, in case any changes were made
 
@@ -110,8 +108,6 @@ class JsonProfilesConnector(JsonSettingsConnector):
         if profile in self.list_profiles():
             self._profile = profile
             self._data = self._all_profiles[self._profile]
-        else:
-            raise ValueError("Invalid Profile Name!")
 
     def get_profile(self):
         return self._profile

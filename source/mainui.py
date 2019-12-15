@@ -13,10 +13,11 @@ import strings
 
 
 class MainWindow(QWidget):
-    def __init__(self, appinst, profilecon, *args, **kwargs):
+    def __init__(self, appinst, profilecon, settingscon, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.app = appinst
         self.profilecon = profilecon  # connector class instance for reading/writing profile settings
+        self.settingscon = settingscon
         self.gcode = None
         self.machine = None
 
@@ -46,7 +47,8 @@ class MainWindow(QWidget):
         self.profileSelector = QComboBox()
         for name in self.profilecon.list_profiles():
             self.profileSelector.addItem(name)
-        self.profilecon.select_profile(self.profileSelector.currentText())
+        self.profileSelector.setCurrentText(self.settingscon.get_value("Current_Profile"))
+        self.profilecon.select_profile(self.settingscon.get_value("Current_Profile"))
         self.toolBar.addWidget(self.profileSelector)
         self.profileSelector.currentTextChanged.connect(self.selected_profile_changed)
         divider = QWidget()
@@ -87,6 +89,8 @@ class MainWindow(QWidget):
     def selected_profile_changed(self, new_profile):
         # select the new profile in the settings connector and update the ui accordingly
         self.profilecon.select_profile(new_profile)
+        self.settingscon.set_value("Current_Profile", new_profile)  # remember selected profile
+        self.settingscon.save_to_file()
         self.configure_plot()
 
     def add_toolbar_action(self, icon, text, function):
@@ -249,7 +253,7 @@ if __name__ == '__main__':
         sys.exit(-1)
 
     else:
-        window = MainWindow(app, profileconnector)
+        window = MainWindow(app, profileconnector, settingsconnector)
         window.show()
 
     app.exec()
