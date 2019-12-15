@@ -94,7 +94,7 @@ class JsonProfilesConnector(JsonSettingsConnector):
         self._all_profiles = self.read_file(self._filename)  # data of all profiles
 
         if len(list(self._all_profiles)) == 0:
-            self.create_empty_config(self._filename)
+            self.create_empty_config(self._filename, self.Default)
             self._all_profiles = self.read_file(self._filename)  # data of all profiles
 
         self.select_profile(list(self._all_profiles.keys())[0])  # select a profile by default TODO Remember last selected profile
