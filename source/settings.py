@@ -21,11 +21,13 @@ default_profile = OrderedDict([("bed_min_x", 0),
                               ("acceleration", 2500),
                               ("junction_dev", 0.05)])
 
-DefaultProfileConf = OrderedDict()["Default"] = default_profile
+DefaultProfileConf = OrderedDict()
+DefaultProfileConf["Default"] = default_profile
 
 
 class JsonSettingsConnector:
     Default = DefaultSettingsConf
+    DefaultKeys = list(Default)
 
     def __init__(self, filename):
         self._filename = filename
@@ -55,29 +57,30 @@ class JsonSettingsConnector:
         # old keys: if a key is not in the defaults but in the current config, it will be removed
         # this enables easily adding features afterwards which require new settings
 
-        default_keys = list(self.Default)
-
         # old keys
         for key in list(self._data):
-            if key not in default_keys:
+            if key not in self.DefaultKeys:
                 del self._data[key]
 
         # new keys
         for i in range(len(self.Default)):
-            key = default_keys[i]
+            key = self.DefaultKeys[i]
             if key not in self._data:
                 # It is intentionally only checked if the key exists and NOT if it exists at the same position even though it should.
                 # If the order of the configuration file gets messed up, the worst thing that can happen this way, is even worse order.
                 # If it is checked for that specific index, keys might be created as duplicates.
                 self._data = insert_into_dict(self._data, key, self.Default[key], i)
 
-    def create_empty_config(self, filename):
+    @staticmethod
+    def create_empty_config(filename, default):
         with open(filename, "w") as json_conf:
-            json.dump(self.Default, json_conf, indent=4)
+            json.dump(default, json_conf, indent=4)
+        pass
 
 
 class JsonProfilesConnector(JsonSettingsConnector):
     Default = DefaultProfileConf
+    DefaultKeys = list(Default["Default"])  # DefaultKeys here means the default keys for the profile, not the whole dict
 
     def __init__(self, filename):
         # super().__init__() is intentionally not called as parts of this init would need
@@ -89,6 +92,10 @@ class JsonProfilesConnector(JsonSettingsConnector):
         self._profile = str()  # name of the currently selected profile
         self._data = None  # data of the current profile; equals _all_profiles[_profile]
         self._all_profiles = self.read_file(self._filename)  # data of all profiles
+
+        if len(list(self._all_profiles)) == 0:
+            self.create_empty_config(self._filename)
+            self._all_profiles = self.read_file(self._filename)  # data of all profiles
 
         self.select_profile(list(self._all_profiles.keys())[0])  # select a profile by default TODO Remember last selected profile
 
@@ -158,17 +165,18 @@ def readConfiguration():
         # all other systems save their config into the application folder for now
         conf_path = "./"
 
-    profiles_path = os.path.join(conf_path, "profiles.conf")
-    settings_path = os.path.join(conf_path, "settings.conf")
+    profiles_name = "profiles.conf"
+    settings_name = "settings.conf"
 
     ret = list()  # List for returing all connectors
-    for connector, path in zip((JsonSettingsConnector, JsonProfilesConnector),
-                               (settings_path, profiles_path)):
+    for connector, name in zip((JsonSettingsConnector, JsonProfilesConnector),
+                               (settings_name, profiles_name)):
+        path = os.path.join(conf_path, name)
         try:
             inst = connector(path)
         except FileNotFoundError:
             # no config found, try creating an empty one
-            connector.create_empty_config(path)
+            connector.create_empty_config(path, connector.Default)
             inst = connector(path)
 
         ret.append(inst)
