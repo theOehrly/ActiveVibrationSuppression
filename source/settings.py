@@ -25,11 +25,14 @@ DefaultProfileConf = OrderedDict()["Default"] = default_profile
 
 
 class JsonSettingsConnector:
+    Default = DefaultSettingsConf
+
     def __init__(self, filename):
         self._filename = filename
-        self._data = None
+        self._data = self.read_file(self._filename)
 
-        self.read_file(self._filename)
+        self.check_configuration()  # check for new or deprecated settings keys an update the config accordingly
+        self.save_to_file()  # save, in case any changes were made
 
     def get_value(self, key):
         return self._data[key]
@@ -39,9 +42,8 @@ class JsonSettingsConnector:
 
     def read_file(self, filename):
         with open(filename, "r") as json_conf:  # read settings file
-            self._data = json.load(json_conf, object_pairs_hook=OrderedDict)
-
-        self.check_configuration()
+            data = json.load(json_conf, object_pairs_hook=OrderedDict)
+        return data
 
     def save_to_file(self):
         with open(self._filename, "w") as json_conf:
@@ -53,7 +55,7 @@ class JsonSettingsConnector:
         # old keys: if a key is not in the defaults but in the current config, it will be removed
         # this enables easily adding features afterwards which require new settings
 
-        default_keys = list(DefaultSettingsConf)
+        default_keys = list(self.Default)
 
         # old keys
         for key in list(self._data):
@@ -61,38 +63,46 @@ class JsonSettingsConnector:
                 del self._data[key]
 
         # new keys
-        for i in range(len(DefaultSettingsConf)):
+        for i in range(len(self.Default)):
             key = default_keys[i]
             if key not in self._data:
                 # It is intentionally only checked if the key exists and NOT if it exists at the same position even though it should.
                 # If the order of the configuration file gets messed up, the worst thing that can happen this way, is even worse order.
                 # If it is checked for that specific index, keys might be created as duplicates.
-                self._data = insert_into_dict(self._data, key, DefaultSettingsConf[key], i)
+                self._data = insert_into_dict(self._data, key, self.Default[key], i)
 
-        self.save_to_file()
-
-    @staticmethod
-    def create_empty_config(filename):
+    def create_empty_config(self, filename):
         with open(filename, "w") as json_conf:
-            json.dump(DefaultSettingsConf, json_conf, indent=4)
+            json.dump(self.Default, json_conf, indent=4)
 
 
-class JsonProfilesConnector:
+class JsonProfilesConnector(JsonSettingsConnector):
+    Default = DefaultProfileConf
+
     def __init__(self, filename):
+        # super().__init__() is intentionally not called as parts of this init would need
+        # to run in the middle of the super classes init function
+        # init is therefore fully implemented here
         self._filename = filename
-        self._profile = None
-        self._data = None
+        self._data = self.read_file(self._filename)
 
-        self.read_file(self._filename)
+        self._profile = str()  # name of the currently selected profile
+        self._data = None  # data of the current profile; equals _all_profiles[_profile]
+        self._all_profiles = self.read_file(self._filename)  # data of all profiles
 
-        self.select_profile(list(self._data.keys())[0])  # select a profile by default TODO Remember last selected profile
+        self.select_profile(list(self._all_profiles.keys())[0])  # select a profile by default TODO Remember last selected profile
+
+        self.check_configuration()  # check for new or deprecated settings keys an update the config accordingly
+        self.save_to_file()  # save, in case any changes were made
 
     def list_profiles(self):
-        return self._data.keys()
+        return list(self._all_profiles)
 
     def select_profile(self, profile):
+        self.sync_to_all()
         if profile in self.list_profiles():
             self._profile = profile
+            self._data = self._all_profiles[self._profile]
         else:
             raise ValueError("Invalid Profile Name!")
 
@@ -100,30 +110,31 @@ class JsonProfilesConnector:
         return self._profile
 
     def add_profile(self, name):
-        self._data[name] = dict()
+        self._all_profiles[name] = OrderedDict()
 
     def delete_current_profile(self):
         # TODO prevent deletion if only one profile, or automatically recreate a default one
-        del self._data[self._profile]
+        del self._all_profiles[self._profile]
 
-    def get_value(self, key):
-        return self._data[self._profile][key]
+    def check_configuration(self):
+        # iterate through all profiles and check them seperately
+        profile_before = self._profile
+        for profile in self.list_profiles():
+            self.select_profile(profile)
+            super().check_configuration()
 
-    def set_value(self, key, value):
-        self._data[self._profile][key] = value
+        self.select_profile(profile_before)  # select the previously selected profile again
 
-    def read_file(self, filename):
-        with open(filename, "r") as json_conf:  # read settings file
-            self._data = json.load(json_conf, object_pairs_hook=OrderedDict)
+    def sync_to_all(self):
+        # all functions read and modify self._data which is a copy of self._all_profiles[self.profile]
+        # any modifications made to it need to be copied back to self._all_profiles before saving or changing profile
+        if self._profile and self._data:
+            self._all_profiles[self._profile] = self._data
 
     def save_to_file(self):
+        self.sync_to_all()
         with open(self._filename, "w") as json_conf:
-            json.dump(self._data, json_conf, indent=4)
-
-    @staticmethod
-    def create_empty_config(filename):
-        with open(filename, "w") as json_conf:
-            json.dump(DefaultProfileConf, json_conf, indent=4)
+            json.dump(self._all_profiles, json_conf, indent=4)
 
 
 def readConfiguration():
