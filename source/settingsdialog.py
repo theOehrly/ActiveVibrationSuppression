@@ -25,7 +25,6 @@ class SettingsDialog(QDialog):
         for name in self.profilecon.list_profiles():
             self.profile_selector.addItem(name)
         self.profile_selector.setCurrentIndex(self.main.profileSelector.currentIndex())
-        # TODO: rather SET the currently selected profile in the QComboBox... research how
         self.profile_selector.currentTextChanged.connect(self.selected_profile_changed)
         box1_layout.addRow("", self.profile_selector)
 
