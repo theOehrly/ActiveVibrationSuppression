@@ -255,11 +255,32 @@ class Machine:
 
         return coords_x, coords_y
 
+    def get_path_coordinates_time_based(self, layer_number=None):
+        x_t = PositionFromTime(self, "x", layer_number)
+        y_t = PositionFromTime(self, "y", layer_number)
+
+        coords_x = list()
+        coords_y = list()
+
+        t = 0
+        while True:
+            try:
+                coords_x.append(x_t[t])
+                coords_y.append(y_t[t])
+            except IndexError:
+                break
+
+            t += 0.01
+
+        return coords_x, coords_y
+
 
 class PathSegment:
     def __init__(self, x, y, nominal_speed, gline, machine):
         self.gline = gline
         self.machine = machine
+
+        self.acceleration_segments = list()
 
         self.x = x  # position after movement [mm]
         self.y = y
@@ -281,6 +302,7 @@ class PathSegment:
 class AccelerationSegment:
     def __init__(self, pathsegment):
         self.path_seg = pathsegment
+        self.path_seg.acceleration_segments.append(self)
 
         self.x = 0  # position after movement [mm]
         self.y = 0
@@ -360,3 +382,116 @@ class SpeedFromTime(ValueFromTime):
 
         # v = v0 + a*t ; acceleration is a negative value for a deceleration segment
         return v_in + self.current_seg.acceleration * t_acc
+
+
+class PositionFromTime:
+    # returns coordinate value at given time
+    def __init__(self, machine, coordinate, layer_number=None):
+        assert coordinate in ("x", "y")
+        if not machine.layers:
+            layer_number = None
+
+        self.coord_name = coordinate
+        self.coord_value = 0
+
+        self.machine = machine
+
+        if layer_number is not None:
+            i_start = self.machine.layers[layer_number]
+            i_end = self.machine.layers[layer_number+1]
+
+            if self.coord_name == "x":
+                self.coord_value = self.machine.path_segments[i_start - 1].x
+            else:
+                self.coord_value = self.machine.path_segments[i_start - 1].y
+
+            first_acc_seg = None
+            while not first_acc_seg:
+                try:
+                    first_acc_seg = self.machine.path_segments[i_start].acceleration_segments[0]
+                except IndexError:
+                    i_start += 1
+
+            last_acc_seg = None
+            while not last_acc_seg:
+                try:
+                    last_acc_seg = self.machine.path_segments[i_end].acceleration_segments[-1]
+                except IndexError:
+                    i_end -= 1
+                    assert i_end >= i_start
+
+            i_acc_start = self.machine.acceleration_segments.index(first_acc_seg)
+            i_acc_end = self.machine.acceleration_segments.index(last_acc_seg)
+
+            self.seg_iter = iter(self.machine.acceleration_segments[i_acc_start: i_acc_end])
+
+        else:
+            if self.coord_name == "x":
+                self.coord_value = self.machine.path_segments[0].x
+            else:
+                self.coord_value = self.machine.path_segments[0].y
+            self.seg_iter = iter(self.machine.acceleration_segments)
+        self.current_seg = next(self.seg_iter)
+
+        self.current_seg_start_time = 0
+        self.current_seg_end_time = self.current_seg.duration
+        self.current_time = 0
+
+    def __getitem__(self, time):
+        if time < self.current_time:
+            raise ValueError("Current time index is smaller than previous time index. This class is unidirectional!")
+
+        while True:
+            if time < self.current_seg_end_time:
+                delta_t = time - self.current_time
+                if self.coord_name == "x":
+                    coord_acc = self.current_seg.x_acceleration
+                else:
+                    coord_acc = self.current_seg.y_acceleration
+                dist = 0.5 * coord_acc * delta_t**2 + self._get_speed(self.current_time) * delta_t
+                self.coord_value += dist
+                self.current_time = time
+                return self.coord_value
+
+            else:
+                delta_t = self.current_seg_end_time - self.current_time
+                if self.coord_name == "x":
+                    coord_acc = self.current_seg.x_acceleration
+                else:
+                    coord_acc = self.current_seg.y_acceleration
+                dist = 0.5 * coord_acc * delta_t**2 + self._get_speed(self.current_time) * delta_t
+
+                self.coord_value += dist
+                self.current_time += delta_t
+
+            try:
+                self.current_seg = next(self.seg_iter)
+            except StopIteration:
+                raise IndexError
+
+            self.current_seg_start_time = self.current_seg_end_time
+            self.current_seg_end_time += self.current_seg.duration
+
+    def _get_speed(self, time):
+        # gets the speed at the specified time (for the selected axis only)
+        if not self.current_seg.acceleration:
+            speed = self.current_seg.path_seg.max_reached_speed
+
+        else:
+            # acceleration or deceleration segment
+            t_acc = time - self.current_seg_start_time  # elapsed time since beginning of this acceleration segment
+
+            # depending on if this is a acceleration/deceleration segment the value at segment entry is either
+            #   - entry speed for acceleration segments
+            if self.current_seg.acceleration > 0:
+                v_in = self.current_seg.path_seg.entry_speed
+            #   - maximum reached speed for deceleration segments
+            else:
+                v_in = self.current_seg.path_seg.max_reached_speed
+
+            # v = v0 + a*t ; acceleration is a negative value for a deceleration segment
+            speed = v_in + self.current_seg.acceleration * t_acc
+
+        speed_vect = Machine.vectorize(self.current_seg.path_seg, speed)
+
+        return speed_vect[{'x': 0, 'y': 1}[self.coord_name]]  # return first or second value of speed vector depending on whether x or y is selected
