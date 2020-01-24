@@ -398,7 +398,10 @@ class PositionFromTime:
 
         if layer_number is not None:
             i_start = self.machine.layers[layer_number]
-            i_end = self.machine.layers[layer_number+1]
+            if layer_number == len(self.machine.layers) - 1:
+                i_end = len(self.machine.path_segments) - 1
+            else:
+                i_end = self.machine.layers[layer_number+1]
 
             if self.coord_name == "x":
                 self.coord_value = self.machine.path_segments[i_start - 1].x
