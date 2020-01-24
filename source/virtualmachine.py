@@ -358,7 +358,7 @@ class ValueFromTime:
 class AccelerationFromTime(ValueFromTime):
     # returns acceleration at given time
     def _return_value(self, time):
-        self.current_seg.get_accelerations()
+        return self.current_seg.get_accelerations()
 
 
 class SpeedFromTime(ValueFromTime):
