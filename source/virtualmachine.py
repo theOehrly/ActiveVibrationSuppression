@@ -230,10 +230,9 @@ class Machine:
         return x_value, y_value
 
     def get_path_coordinates(self, layer_number=None):
-        # TODO fix crash in single layer files
         # returns two lists of x and y values respectively
         # for the specified layer or the whole gcode if not specified
-        if layer_number is None:
+        if layer_number in (None, -1):
             # return all items
             start = None  # slicing a list with [None:None] returns all elements
             end = None
