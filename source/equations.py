@@ -38,7 +38,7 @@ class ZAxisTorsion:
 
     def _Mz_t(self, t):
         # torsional moment around the z axis in relation to the time t
-        return self.pL_xoff * self.pm_head * self.dydt2[t]
+        return self.pL_xoff * self.pm_head * self.dydt2[t][2]
 
     def explicit_equation(self, j, iht, t):
         # the inhomogenous term is included in this equation as self._Mz_t
