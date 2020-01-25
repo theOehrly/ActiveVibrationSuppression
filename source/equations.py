@@ -12,17 +12,17 @@ class ZAxisTorsion:
         self.z = 0   # [mm] z height above reference zero height  TODO should not be constant
 
         # calculation parameters
-        self.pG = 70000    # [MPa] shear modulus
-        self.pI_t = 00000  # [mm^2] polar moment of inertia
-        self.pd_t = 000000   # [(N*mm)/s] damping coefficient
+        self.pG = 70000      # [MPa] shear modulus
+        self.pI_t = 15000    # [mm^4] polar moment of inertia
+        self.pd_t = 210000   # [(N*mm)/s] damping coefficient
 
         self.pL_zmin = 10  # [mm] minimum height of the z axis
         self.pL_ymin = 25  # [mm] minimum distance between the axis of rotation (z-axis) and the center of gravity of the print head
         self.pL_xoff = 25  # [mm] distance between y-axis and center of gravity of the print head
 
-        self.pJ_ybeam = 0000000   # [mm^3] first moment of area of the y-beam around the z-axis (i.e. the y-axis' single point of fixation
-        self.pJ_head = 0000000    # [mm^3] first moment of area of the print head around its center of gravity
-        self.pm_head = 00000000   # [kg] mass of the print head
+        self.pJ_ybeam = 333       # [kg*mm^2] first moment of area of the y-beam around the z-axis (i.e. the y-axis' single point of fixation
+        self.pJ_head = 250        # [kg*mm^2] first moment of area of the print head around its center of gravity
+        self.pm_head = 0.25       # [kg] mass of the print head
 
     def _kt_z(self):
         # torsional spring constant in relation to the current height z
@@ -41,4 +41,5 @@ class ZAxisTorsion:
         return self.pL_xoff * self.pm_head * self.dydt2[t]
 
     def explicit_equation(self, j, iht, t):
+        # the inhomogenous term is included in this equation as self._Mz_t
         return (-self._kt_z() * j[0] - self.pd_t * j[1] + self._Mz_t(t)) / self._J_y()
